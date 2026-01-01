@@ -1,0 +1,69 @@
+# --- OS clutter ---
+.DS_Store
+Thumbs.db
+
+# --- IDEs / editors ---
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# --- Unreal generated build files (regenerable) ---
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+# Common subfolders under Saved you don't need
+Saved/Autosaves/
+Saved/Backup/
+Saved/Collections/
+Saved/Logs/
+
+# --- Project files that can be regenerated ---
+# If you prefer to keep .sln, remove the next two lines:
+*.sln
+*.vcxproj*
+*.xcodeproj
+*.opensdf
+*.sdf
+*.sln.cache
+*.ipch
+*.obj
+*.iobj
+*.pdb
+*.opendb
+
+# --- Build artifacts & packages ---
+*.pak
+*.ucas
+*.utoc
+
+# --- Plugin build outputs (nested) ---
+**/Binaries/
+**/Intermediate/
+**/Saved/
+
+# --- Crash reports & misc ---
+*.dmp
+
+# --- Node / Python / other tooling caches (if you use them) ---
+node_modules/
+.venv/
+__pycache__/
+
+# --- If you create per-user config overrides (keep base Config/) ---
+# Uncomment if you have machine/user-specific config you don't want:
+# Config/DefaultEditorPerProjectUserSettings.ini
+# Config/DefaultEditorUserSettings.ini
+
+# --- Optional: keep only these top-level folders tracked ---
+# (These are the ones you usually want in source control)
+!Config/
+!Content/
+!Source/
+!Shaders/
+!Plugins/
+!*.uproject
