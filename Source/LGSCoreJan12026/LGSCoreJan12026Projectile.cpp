@@ -4,6 +4,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
 
+
 ALGSCoreJan12026Projectile::ALGSCoreJan12026Projectile() 
 {
 	// Use a sphere as a simple collision representation
@@ -30,6 +31,20 @@ ALGSCoreJan12026Projectile::ALGSCoreJan12026Projectile()
 	// Die after 3 seconds by default
 	InitialLifeSpan = 3.0f;
 }
+
+//new 1_3_26
+void ALGSCoreJan12026Projectile::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (ProjectileMovement)
+	{
+		// Force velocity from the spawned rotation.
+		ProjectileMovement->Velocity = GetActorForwardVector() * ProjectileMovement->InitialSpeed;
+	}
+}
+//end 1_3_26
+
 
 void ALGSCoreJan12026Projectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {

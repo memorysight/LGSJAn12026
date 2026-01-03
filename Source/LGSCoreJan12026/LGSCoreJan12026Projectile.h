@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+//new 1_3_26
+#include "Components/PrimitiveComponent.h"
+//end 1_3_26
 #include "LGSCoreJan12026Projectile.generated.h"
 
 class USphereComponent;
@@ -33,5 +36,13 @@ public:
 	USphereComponent* GetCollisionComp() const { return CollisionComp; }
 	/** Returns ProjectileMovement subobject **/
 	UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
+
+//new 1_3_26
+protected:
+	virtual void BeginPlay() override;
+//end 1_3_26	
+
 };
+
+
 

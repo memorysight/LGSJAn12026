@@ -1,27 +1,140 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "LGSCombatCoreComponent.h"
+#include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
+#include "Camera/CameraComponent.h"
+#include "LGSCoreJan12026Character.h"
 
-// Sets default values
-ALGSCombatCoreComponent::ALGSCombatCoreComponent()
+ULGSCombatCoreComponent::ULGSCombatCoreComponent()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
-// Called when the game starts or when spawned
-void ALGSCombatCoreComponent::BeginPlay()
+void ULGSCombatCoreComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	OnCombatModeChanged.Broadcast(CombatMode);
 }
 
-// Called every frame
-void ALGSCombatCoreComponent::Tick(float DeltaTime)
+void ULGSCombatCoreComponent::ToggleCombatMode()
 {
-	Super::Tick(DeltaTime);
-
+	SetCombatMode(CombatMode == ECombatMode::Ranged ? ECombatMode::Melee : ECombatMode::Ranged);
 }
 
+void ULGSCombatCoreComponent::SetCombatMode(ECombatMode NewMode)
+{
+	if (CombatMode == NewMode) return;
+
+	CombatMode = NewMode;
+	OnCombatModeChanged.Broadcast(CombatMode);
+}
+
+void ULGSCombatCoreComponent::TryPrimary()
+{
+	if (CombatMode == ECombatMode::Ranged)
+	{
+		DoRangedShot();
+	}
+	else
+	{
+		DoMeleeSwing();
+	}
+}
+
+void ULGSCombatCoreComponent::TrySecondary()
+{
+	// Reserved for Aim / Block / AltFire later.
+}
+
+void ULGSCombatCoreComponent::DoRangedShot()
+{
+	if (!bCanFire) return;
+	bCanFire = false;
+
+	UWorld* World = GetWorld();
+	if (!World) { ResetFire(); return; }
+
+	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
+	if (!OwnerChar) { ResetFire(); return; }
+
+	if (!BulletClass)
+	{
+		World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
+		return;
+	}
+
+	//new 1_3_26
+	// Prefer muzzle socket location, but aim with camera rotation for FPS feel.
+	// Always initialize to something valid.
+	FTransform SpawnXform = OwnerChar->GetActorTransform();
+
+	UCameraComponent* Cam = OwnerChar->GetFirstPersonCameraComponent();
+	const FRotator AimRot = Cam ? Cam->GetComponentRotation() : OwnerChar->GetActorRotation();
+
+	if (USkeletalMeshComponent* Mesh1P = OwnerChar->GetMesh1P())
+	{
+		if (Mesh1P->DoesSocketExist(MuzzleSocketName))
+		{
+			// Use socket location, but aim where the camera looks
+			const FVector MuzzleLoc = Mesh1P->GetSocketLocation(MuzzleSocketName);
+			SpawnXform = FTransform(AimRot, MuzzleLoc);
+		}
+		else if (Cam)
+		{
+			// No socket: spawn a bit in front of camera
+			const FVector Loc = Cam->GetComponentLocation() + Cam->GetForwardVector() * 100.f;
+			SpawnXform = FTransform(AimRot, Loc);
+		}
+	}
+	else if (Cam)
+	{
+		// Mesh missing: still allow shooting
+		const FVector Loc = Cam->GetComponentLocation() + Cam->GetForwardVector() * 100.f;
+		SpawnXform = FTransform(AimRot, Loc);
+	}
+	//end 1_3_26
+
+	FActorSpawnParameters Params;
+	Params.Owner = OwnerChar;
+	Params.Instigator = OwnerChar;
+
+	World->SpawnActor<AActor>(BulletClass, SpawnXform, Params);
+
+	World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
+}
+
+void ULGSCombatCoreComponent::DoMeleeSwing()
+{
+	if (!bCanMelee) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	bCanMelee = false;
+
+	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
+	if (!OwnerChar)
+	{
+		ResetMelee();
+		return;
+	}
+
+	if (MeleeMontage)
+	{
+		OwnerChar->PlayAnimMontage(MeleeMontage);
+	}
+
+	World->GetTimerManager().SetTimer(
+		Timer_MeleeCooldown, this, &ULGSCombatCoreComponent::ResetMelee, MeleeCooldown, false);
+}
+
+void ULGSCombatCoreComponent::ResetFire()
+{
+	bCanFire = true;
+}
+
+void ULGSCombatCoreComponent::ResetMelee()
+{
+	bCanMelee = true;
+}
