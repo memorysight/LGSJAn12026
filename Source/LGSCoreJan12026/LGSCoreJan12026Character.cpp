@@ -16,6 +16,9 @@
 //new 1_3_26
 #include "Components/StaticMeshComponent.h"
 //end 1_3_26
+//new 1_4_26
+#include "LGSWeaponDataAsset.h"
+//end 1_4_26
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -157,48 +160,177 @@ void ALGSCoreJan12026Character::Look(const FInputActionValue& Value)
 	}
 }
 
-//new 1_3_26
+//new 1_4_26
 void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 {
 	ApplyWeaponVisualsForMode(NewMode);
 }
 
+//new 1_4_26
 void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 {
 	if (!Mesh1P) return;
+	if (!RangedWeaponVisual && !MeleeWeaponVisual) return;
 
 	const bool bIsRanged = (NewMode == ECombatMode::Ranged);
+	ULGSWeaponDataAsset* ActiveDA = bIsRanged ? RangedWeaponData : MeleeWeaponData;
 
-	// Attach to sockets (safe even if socket missing; still attaches to mesh)
-	if (RangedWeaponVisual)
+#if !UE_BUILD_SHIPPING
+	// Catch accidental mis-assignment early
+	if (ActiveDA && bIsRanged && ActiveDA->WeaponType != ELGSWeaponType::Ranged)
 	{
-		RangedWeaponVisual->AttachToComponent(
-			Mesh1P,
-			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-			RangedWeaponSocketName
-		);
+		UE_LOG(LogTemplateCharacter, Warning,
+			TEXT("Ranged mode is using non-ranged WeaponDataAsset: %s"), *GetNameSafe(ActiveDA));
+	}
+	if (ActiveDA && !bIsRanged && ActiveDA->WeaponType != ELGSWeaponType::Melee)
+	{
+		UE_LOG(LogTemplateCharacter, Warning,
+			TEXT("Melee mode is using non-melee WeaponDataAsset: %s"), *GetNameSafe(ActiveDA));
+	}
+#endif
+
+	// No DA: clear active mesh, keep visibility consistent, bail
+	if (!ActiveDA)
+	{
+		if (bIsRanged)
+		{
+			if (RangedWeaponVisual)
+			{
+				RangedWeaponVisual->SetStaticMesh(nullptr);
+				RangedWeaponVisual->SetRelativeTransform(FTransform::Identity);
+			}
+		}
+		else
+		{
+			if (MeleeWeaponVisual)
+			{
+				MeleeWeaponVisual->SetStaticMesh(nullptr);
+				MeleeWeaponVisual->SetRelativeTransform(FTransform::Identity);
+			}
+		}
+
+		// Visibility still reflects combat mode
+		if (RangedWeaponVisual)
+		{
+			RangedWeaponVisual->SetVisibility(bIsRanged, true);
+			RangedWeaponVisual->SetHiddenInGame(!bIsRanged, true);
+		}
+		if (MeleeWeaponVisual)
+		{
+			MeleeWeaponVisual->SetVisibility(!bIsRanged, true);
+			MeleeWeaponVisual->SetHiddenInGame(bIsRanged, true);
+		}
+
+		return;
 	}
 
-	if (MeleeWeaponVisual)
+	// DA exists but has no mesh: treat like "no weapon" (prevents haunted offsets)
+	if (!ActiveDA->FP_StaticMesh)
 	{
-		MeleeWeaponVisual->AttachToComponent(
-			Mesh1P,
-			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-			MeleeWeaponSocketName
-		);
+		if (bIsRanged)
+		{
+			if (RangedWeaponVisual)
+			{
+				RangedWeaponVisual->SetStaticMesh(nullptr);
+				RangedWeaponVisual->SetRelativeTransform(FTransform::Identity);
+			}
+		}
+		else
+		{
+			if (MeleeWeaponVisual)
+			{
+				MeleeWeaponVisual->SetStaticMesh(nullptr);
+				MeleeWeaponVisual->SetRelativeTransform(FTransform::Identity);
+			}
+		}
+
+		// Visibility still reflects combat mode
+		if (RangedWeaponVisual)
+		{
+			RangedWeaponVisual->SetVisibility(bIsRanged, true);
+			RangedWeaponVisual->SetHiddenInGame(!bIsRanged, true);
+		}
+		if (MeleeWeaponVisual)
+		{
+			MeleeWeaponVisual->SetVisibility(!bIsRanged, true);
+			MeleeWeaponVisual->SetHiddenInGame(bIsRanged, true);
+		}
+
+		return;
 	}
 
-	// Toggle visibility
+	// Choose socket (override wins, else use your defaults)
+	const FName SocketToUse =
+		(ActiveDA->AttachSocketOverride != NAME_None)
+			? ActiveDA->AttachSocketOverride
+			: (bIsRanged ? RangedWeaponSocketName : MeleeWeaponSocketName);
+
+	// Apply mesh + offset to the active visual, attach only if needed
+	if (bIsRanged && RangedWeaponVisual)
+	{
+		const bool bNeedsAttach =
+			(RangedWeaponVisual->GetAttachParent() != Mesh1P) ||
+			(RangedWeaponVisual->GetAttachSocketName() != SocketToUse);
+
+		if (bNeedsAttach)
+		{
+			RangedWeaponVisual->AttachToComponent(
+				Mesh1P,
+				FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+				SocketToUse
+			);
+		}
+
+		RangedWeaponVisual->SetStaticMesh(ActiveDA->FP_StaticMesh);
+		RangedWeaponVisual->SetRelativeTransform(ActiveDA->AttachOffset);
+	}
+	else if (!bIsRanged && MeleeWeaponVisual)
+	{
+		const bool bNeedsAttach =
+			(MeleeWeaponVisual->GetAttachParent() != Mesh1P) ||
+			(MeleeWeaponVisual->GetAttachSocketName() != SocketToUse);
+
+		if (bNeedsAttach)
+		{
+			MeleeWeaponVisual->AttachToComponent(
+				Mesh1P,
+				FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+				SocketToUse
+			);
+		}
+
+		MeleeWeaponVisual->SetStaticMesh(ActiveDA->FP_StaticMesh);
+		MeleeWeaponVisual->SetRelativeTransform(ActiveDA->AttachOffset);
+	}
+
+	// Clear inactive side so it never lingers
+	if (bIsRanged)
+	{
+		if (MeleeWeaponVisual)
+		{
+			MeleeWeaponVisual->SetStaticMesh(nullptr);
+			MeleeWeaponVisual->SetRelativeTransform(FTransform::Identity);
+		}
+	}
+	else
+	{
+		if (RangedWeaponVisual)
+		{
+			RangedWeaponVisual->SetStaticMesh(nullptr);
+			RangedWeaponVisual->SetRelativeTransform(FTransform::Identity);
+		}
+	}
+
+	// Visibility toggle
 	if (RangedWeaponVisual)
 	{
-		RangedWeaponVisual->SetHiddenInGame(!bIsRanged, true);
 		RangedWeaponVisual->SetVisibility(bIsRanged, true);
+		RangedWeaponVisual->SetHiddenInGame(!bIsRanged, true);
 	}
 
 	if (MeleeWeaponVisual)
 	{
-		MeleeWeaponVisual->SetHiddenInGame(bIsRanged, true);
 		MeleeWeaponVisual->SetVisibility(!bIsRanged, true);
+		MeleeWeaponVisual->SetHiddenInGame(bIsRanged, true);
 	}
 }
-//end 1_3_26

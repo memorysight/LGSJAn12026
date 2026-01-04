@@ -6,9 +6,12 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "InputAction.h"
-//new 1_3_26
+//1_3_26
 #include "LGSCombatCoreComponent.h"
 //end 1_3_26
+//new 1/4/26
+#include "LGSWeaponDataAsset.h"
+//end 1_4_26
 #include "LGSCoreJan12026Character.generated.h"
 
 class UInputComponent;
@@ -17,9 +20,10 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 class ULGSCombatCoreComponent;
-//new 1_3_26
+//1_3_26
 class UStaticMeshComponent;
 //end 1_3_26
+
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -64,7 +68,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	UInputAction* ToggleCombatModeAction;
 	//end 1/2/26
 
-	//new 1_3_26
+	//1_3_26
 	// --- Weapon visuals (mode swap) ---
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapons", meta=(AllowPrivateAccess="true"))
 	UStaticMeshComponent* RangedWeaponVisual = nullptr;
@@ -72,18 +76,26 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapons", meta=(AllowPrivateAccess="true"))
 	UStaticMeshComponent* MeleeWeaponVisual = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapons|Sockets", meta=(AllowPrivateAccess="true"))
-	FName RangedWeaponSocketName = TEXT("WeaponSocket");
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Sockets", meta=(AllowPrivateAccess="true"))
+	FName RangedWeaponSocketName = TEXT("weapon_r");
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapons|Sockets", meta=(AllowPrivateAccess="true"))
-	FName MeleeWeaponSocketName = TEXT("hand_rSocket");
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Sockets", meta=(AllowPrivateAccess="true"))
+	FName MeleeWeaponSocketName = TEXT("weapon_r");
+
+	// DataAssets
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Data", meta=(AllowPrivateAccess="true"))
+	ULGSWeaponDataAsset* RangedWeaponData = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Data", meta=(AllowPrivateAccess="true"))
+	ULGSWeaponDataAsset* MeleeWeaponData = nullptr;
 
 	UFUNCTION()
 	void HandleCombatModeChanged(ECombatMode NewMode);
 
+	UFUNCTION()
 	void ApplyWeaponVisualsForMode(ECombatMode NewMode);
-	//end 1_3_26
 
+	
 	
 public:
 	ALGSCoreJan12026Character();
@@ -95,7 +107,7 @@ protected:
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
-	//new 1_3_26
+	//1_3_26
 	virtual void BeginPlay() override;
 	//end 1_3_26
 
