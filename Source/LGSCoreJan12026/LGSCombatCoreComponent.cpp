@@ -50,7 +50,7 @@ void ULGSCombatCoreComponent::SetCombatMode(ECombatMode NewMode)
 
 	if (CombatMode == NewMode) return;
 
-	CombatMode = NewMode;
+	CombatMode = ECombatMode::Ranged;
 	OnCombatModeChanged.Broadcast(CombatMode);
 
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] SetCombatMode %s -> %s"),

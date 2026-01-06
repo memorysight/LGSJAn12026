@@ -82,6 +82,14 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Sockets", meta=(AllowPrivateAccess="true"))
 	FName MeleeWeaponSocketName = TEXT("weapon_r");
 
+	//new 1_6_26
+	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
+	FRotator RangedVisualRotationFix = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
+	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
+
+
 	// DataAssets
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Data", meta=(AllowPrivateAccess="true"))
 	ULGSWeaponDataAsset* RangedWeaponData = nullptr;

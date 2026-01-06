@@ -252,14 +252,22 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 
     // Sanitize offset scale
     FTransform SafeOffset = ActiveDA->AttachOffset;
+
+	//this is necessary because Blender was the missing link issue
+	// Optional orientation correction (Unreal-side “Blender rotate/apply”)
+	const FRotator FixRot = bIsRanged ? RangedVisualRotationFix : MeleeVisualRotationFix;
+	SafeOffset.ConcatenateRotation(FixRot.Quaternion());
     const FVector S = SafeOffset.GetScale3D();
     if (S.IsNearlyZero() || S.ContainsNaN())
     {
         SafeOffset.SetScale3D(FVector(1.f, 1.f, 1.f));
     }
+
+	
+
     ActiveComp->SetRelativeTransform(SafeOffset);
 
     ActiveComp->SetVisibility(true, true);
     ActiveComp->SetHiddenInGame(false, true);
-    ActiveComp->SetWorldScale3D(FVector(1.f));
+	ActiveComp->SetRelativeScale3D(FVector(1.f));
 }
