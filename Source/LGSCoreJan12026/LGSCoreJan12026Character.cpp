@@ -194,6 +194,15 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
     UStaticMeshComponent* InactiveComp = bIsRanged ? MeleeWeaponVisual : RangedWeaponVisual;
 
     ULGSWeaponDataAsset* ActiveDA = bIsRanged ? RangedWeaponData : MeleeWeaponData;
+	//new 1_6_26
+	UE_LOG(LogTemplateCharacter, Warning,
+	TEXT("[VISUAL PICK] Mode=%s ActiveDA=%s DAType=%d Mesh=%s"),
+	bIsRanged ? TEXT("Ranged") : TEXT("Melee"),
+	*GetNameSafe(ActiveDA),
+	ActiveDA ? (int32)ActiveDA->WeaponType : -1,
+	ActiveDA && ActiveDA->FP_StaticMesh ? *GetNameSafe(ActiveDA->FP_StaticMesh) : TEXT("NULL")
+);
+	//end 1_6_26
 
     // Clear + hide inactive ALWAYS
     if (InactiveComp)
