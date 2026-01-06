@@ -19,15 +19,44 @@ void ULGSCombatCoreComponent::BeginPlay()
 
 void ULGSCombatCoreComponent::ToggleCombatMode()
 {
+	//ok
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			2.0f,
+			FColor::Green,
+			FString::Printf(
+				TEXT("ToggleCombatMode pressed. Current=%s"),
+				CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee")
+			)
+		);
+	}
+
 	SetCombatMode(CombatMode == ECombatMode::Ranged ? ECombatMode::Melee : ECombatMode::Ranged);
+
+	
+
+
 }
 
 void ULGSCombatCoreComponent::SetCombatMode(ECombatMode NewMode)
 {
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] SetCombatMode %s -> %s"),
+	CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
+	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
+
 	if (CombatMode == NewMode) return;
 
 	CombatMode = NewMode;
 	OnCombatModeChanged.Broadcast(CombatMode);
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] SetCombatMode %s -> %s"),
+	CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
+	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
+
 }
 
 void ULGSCombatCoreComponent::TryPrimary()
@@ -63,7 +92,7 @@ void ULGSCombatCoreComponent::DoRangedShot()
 		World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
 		return;
 	}
-
+	//change to make rider build again to fix desync issue
 	//new 1_3_26
 	// Prefer muzzle socket location, but aim with camera rotation for FPS feel.
 	// Always initialize to something valid.
