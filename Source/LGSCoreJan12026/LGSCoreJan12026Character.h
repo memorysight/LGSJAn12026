@@ -68,6 +68,10 @@ class ALGSCoreJan12026Character : public ACharacter
 	UInputAction* ToggleCombatModeAction;
 	//end 1/2/26
 
+	//new 1_11_26
+	// Sanity check: Shield component naming cleaned up (ULGSShieldComponent) - 2026-01-xx
+
+
 	//1_3_26
 	// --- Weapon visuals (mode swap) ---
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapons", meta=(AllowPrivateAccess="true"))
