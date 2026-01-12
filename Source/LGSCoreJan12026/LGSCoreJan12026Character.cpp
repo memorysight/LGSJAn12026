@@ -19,6 +19,9 @@
 //new 1_4_26
 #include "LGSWeaponDataAsset.h"
 //end 1_4_26
+//new 1_12_26
+#include "LGSShieldComponent.h"
+//end 1_12_26
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -46,7 +49,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	CombatCore = CreateDefaultSubobject<ULGSCombatCoreComponent>(TEXT("CombatCore"));
 	//1/2/26
 
-	//new 1_3_29
+	//1_3_29
 	// --- Weapon visuals (simple first pass) ---
 	RangedWeaponVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RangedWeaponVisual"));
 	RangedWeaponVisual->SetupAttachment(Mesh1P);
@@ -64,17 +67,21 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	MeleeWeaponVisual->SetVisibility(false, true);
 	//end 1_3_26
 
-	//2029 is the time now..
+	
 	RangedWeaponVisual->SetStaticMesh(nullptr);
 	MeleeWeaponVisual->SetStaticMesh(nullptr);
-	//mostly
+	
 
-	//hmmm, still hurts
+	
 	RangedWeaponVisual->SetOnlyOwnerSee(true);
 	MeleeWeaponVisual->SetOnlyOwnerSee(true);
 	RangedWeaponVisual->SetOwnerNoSee(false);
 	MeleeWeaponVisual->SetOwnerNoSee(false);
 
+	//new 1_12_26
+	// in ctor:
+	ShieldComp = CreateDefaultSubobject<ULGSShieldComponent>(TEXT("ShieldComp"));
+	//end 1_12_26
 
 }
 
@@ -96,6 +103,13 @@ void ALGSCoreJan12026Character::NotifyControllerChanged()
 void ALGSCoreJan12026Character::BeginPlay()
 {
 	Super::BeginPlay();
+
+	//new 1_12_26 for testing
+	if (ShieldComp)
+	{
+		ShieldComp->ActivateShield();
+	}
+	//end 1_12_26
 
 	if (CombatCore)
 	{
@@ -170,7 +184,7 @@ void ALGSCoreJan12026Character::Look(const FInputActionValue& Value)
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
 }
-//new 1_4_26
+//1_4_26
 void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 {
 	//apparently this does something:
@@ -280,3 +294,28 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
     ActiveComp->SetHiddenInGame(false, true);
 	ActiveComp->SetRelativeScale3D(FVector(1.f));
 }
+
+//new 1_12_26
+float ALGSCoreJan12026Character::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
+	AController* EventInstigator, AActor* DamageCauser)
+{
+	float Remaining = DamageAmount;
+
+	if (ShieldComp)
+	{
+		Remaining = ShieldComp->HandleIncomingDamage(DamageAmount);
+
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[DMG] In=%.2f Remaining=%.2f Shield=%.2f"),
+			DamageAmount,
+			Remaining,
+			ShieldComp ? ShieldComp->GetShieldEnergy() : -1.f);
+
+		if (Remaining <= 0.f)
+		{
+			return 0.f;
+		}
+	}
+
+	return Super::TakeDamage(Remaining, DamageEvent, EventInstigator, DamageCauser);
+}
+//end 1_12_26

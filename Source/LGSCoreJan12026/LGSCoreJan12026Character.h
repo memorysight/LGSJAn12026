@@ -9,7 +9,7 @@
 //1_3_26
 #include "LGSCombatCoreComponent.h"
 //end 1_3_26
-//new 1/4/26
+//1/4/26
 #include "LGSWeaponDataAsset.h"
 //end 1_4_26
 #include "LGSCoreJan12026Character.generated.h"
@@ -23,6 +23,9 @@ class ULGSCombatCoreComponent;
 //1_3_26
 class UStaticMeshComponent;
 //end 1_3_26
+//new 1_12_26
+class ULGSShieldComponent;
+//end 1_12_26
 
 struct FInputActionValue;
 
@@ -68,10 +71,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	UInputAction* ToggleCombatModeAction;
 	//end 1/2/26
 
-	//new 1_11_26
-	// Sanity check: Shield component naming cleaned up (ULGSShieldComponent) - 2026-01-xx
-
-
+	
 	//1_3_26
 	// --- Weapon visuals (mode swap) ---
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapons", meta=(AllowPrivateAccess="true"))
@@ -86,13 +86,17 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Sockets", meta=(AllowPrivateAccess="true"))
 	FName MeleeWeaponSocketName = TEXT("weapon_r");
 
-	//new 1_6_26
+	//1_6_26
 	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
 	FRotator RangedVisualRotationFix = FRotator::ZeroRotator;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
+	//new 1_12_26
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	ULGSShieldComponent* ShieldComp = nullptr;
+	//end1_12_26
 
 	// DataAssets
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Data", meta=(AllowPrivateAccess="true"))
@@ -128,6 +132,11 @@ protected:
 	virtual void NotifyControllerChanged() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 	// End of APawn interface
+
+	//new 1_12_26
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+	class AController* EventInstigator, AActor* DamageCauser) override;
+	//end 1_12_26
 
 public:
 	/** Returns Mesh1P subobject **/
