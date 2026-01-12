@@ -129,33 +129,43 @@ void ALGSCoreJan12026Character::BeginPlay()
 //end 1_3_26
 void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
-	{EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Move);EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Look);
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-		// Combat bindings
-		if (CombatCore && ShootAction)
-		{
-			EnhancedInputComponent->BindAction(
-				ShootAction, ETriggerEvent::Started,
-				CombatCore, &ULGSCombatCoreComponent::TryPrimary
-			);
-		}
+	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (!EnhancedInputComponent)
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input Component!"), *GetNameSafe(this));
+		return;
+	}
 
-		if (CombatCore && ToggleCombatModeAction)
-		{
-			EnhancedInputComponent->BindAction(
-				ToggleCombatModeAction, ETriggerEvent::Started,
-				CombatCore, &ULGSCombatCoreComponent::ToggleCombatMode
-			);
-		}
+	// movement/look
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Move);
+	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Look);
+
+	// combat
+	if (CombatCore && ShootAction)
+	{
+		EnhancedInputComponent->BindAction(ShootAction, ETriggerEvent::Started, CombatCore, &ULGSCombatCoreComponent::TryPrimary);
+	}
+
+	if (CombatCore && ToggleCombatModeAction)
+	{
+		EnhancedInputComponent->BindAction(ToggleCombatModeAction, ETriggerEvent::Started, CombatCore, &ULGSCombatCoreComponent::ToggleCombatMode);
+	}
+
+	// ✅ shield toggle
+	if (ToggleShieldAction)
+	{
+		EnhancedInputComponent->BindAction(ToggleShieldAction, ETriggerEvent::Started, this, &ALGSCoreJan12026Character::OnToggleShield);
 	}
 	else
 	{
-		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input Component!"), *GetNameSafe(this));
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] ToggleShieldAction not set (expected until you assign IA in BP)."));
 	}
 }
+
 
 
 
@@ -318,4 +328,22 @@ float ALGSCoreJan12026Character::TakeDamage(float DamageAmount, FDamageEvent con
 
 	return Super::TakeDamage(Remaining, DamageEvent, EventInstigator, DamageCauser);
 }
+
+void ALGSCoreJan12026Character::OnToggleShield()
+{
+	if (!ShieldComp)
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[SHIELD] No ShieldComp"));
+		return;
+	}
+
+	ShieldComp->ToggleShield();
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[SHIELD] Toggle pressed. Active=%d Energy=%.1f"),
+		ShieldComp->IsShieldActiveAndPowered() ? 1 : 0,
+		ShieldComp->GetShieldEnergy());
+}
+
+
+
 //end 1_12_26

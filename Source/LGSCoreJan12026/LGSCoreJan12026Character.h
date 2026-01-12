@@ -96,6 +96,10 @@ class ALGSCoreJan12026Character : public ACharacter
 	//new 1_12_26
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	ULGSShieldComponent* ShieldComp = nullptr;
+
+	// Input
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+	UInputAction* ToggleShieldAction = nullptr;
 	//end1_12_26
 
 	// DataAssets
@@ -110,6 +114,11 @@ class ALGSCoreJan12026Character : public ACharacter
 
 	UFUNCTION()
 	void ApplyWeaponVisualsForMode(ECombatMode NewMode);
+
+	//1_12_26
+	UFUNCTION()
+	void OnToggleShield();
+	//end1_12_26
 
 	
 	
