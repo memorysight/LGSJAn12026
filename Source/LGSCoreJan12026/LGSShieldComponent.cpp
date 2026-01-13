@@ -1,19 +1,135 @@
 #include "LGSShieldComponent.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
+//new 1_14_26
+#include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "UObject/ConstructorHelpers.h"
+//end 1_14_26
 
 ULGSShieldComponent::ULGSShieldComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+//new 1_14_26
+static UStaticMesh* GetEngineSphereMesh()
+{
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshObj(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	return SphereMeshObj.Succeeded() ? SphereMeshObj.Object : nullptr;
+}
+//end 1_14_26
+
 void ULGSShieldComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ShieldEnergy = FMath::Clamp(ShieldEnergy, 0.f, MaxShieldEnergy);
+	AActor* Owner = GetOwner();
+	if (!Owner) return;
+
+	// Choose best attach parent: Character mesh if possible, else root.
+	USceneComponent* AttachParent = Owner->GetRootComponent();
+
+	if (ACharacter* C = Cast<ACharacter>(Owner))
+	{
+		if (USkeletalMeshComponent* Mesh = C->GetMesh())
+		{
+			AttachParent = Mesh;
+		}
+	}
+
+	if (!AttachParent) return;
+
+	// Create shield parts once
+	if (!ShieldRootComp)
+	{
+		ShieldRootComp = NewObject<USceneComponent>(Owner, TEXT("ShieldRootComp"));
+		ShieldRootComp->RegisterComponent();
+		ShieldRootComp->AttachToComponent(AttachParent, FAttachmentTransformRules::KeepRelativeTransform);
+
+		ShieldCollisionComp = NewObject<USphereComponent>(Owner, TEXT("ShieldCollisionComp"));
+		ShieldCollisionComp->RegisterComponent();
+		ShieldCollisionComp->AttachToComponent(ShieldRootComp, FAttachmentTransformRules::KeepRelativeTransform);
+		ShieldCollisionComp->InitSphereRadius(ShieldSphereRadius);
+
+		ShieldCollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ShieldCollisionComp->SetCollisionObjectType(ECC_WorldDynamic);
+		ShieldCollisionComp->SetGenerateOverlapEvents(false);
+		ShieldCollisionComp->SetNotifyRigidBodyCollision(false);
+
+		ShieldCollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+		ShieldCollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+		// (optional later) custom projectile channel
+
+		ShieldVisualComp = NewObject<UStaticMeshComponent>(Owner, TEXT("ShieldVisualComp"));
+		ShieldVisualComp->RegisterComponent();
+		ShieldVisualComp->AttachToComponent(ShieldRootComp, FAttachmentTransformRules::KeepRelativeTransform);
+		ShieldVisualComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ShieldVisualComp->SetHiddenInGame(true, true);
+
+		if (UStaticMesh* Sphere = GetEngineSphereMesh())
+		{
+			ShieldVisualComp->SetStaticMesh(Sphere);
+		}
+
+		if (ShieldMaterial)
+		{
+			ShieldVisualComp->SetMaterial(0, ShieldMaterial);
+		}
+
+		ShieldCollisionComp->OnComponentBeginOverlap.AddDynamic(this, &ULGSShieldComponent::OnShieldBeginOverlap);
+	}
+	
 	UpdateEligibilityAndVisuals();
 }
+
+
+//new 1_14_@6
+void ULGSShieldComponent::OnShieldBeginOverlap(
+	UPrimitiveComponent* OverlappedComp,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex,
+	bool bFromSweep,
+	const FHitResult& SweepResult)
+{
+	if (!OtherActor || !IsShieldActiveAndPowered()) return;
+
+	if (!bDestroyBulletsOnOverlap) return;
+
+	bool bLooksLikeBullet = false;
+
+	if (BulletClass)
+	{
+		bLooksLikeBullet = OtherActor->IsA(BulletClass);
+	}
+	else
+	{
+		bLooksLikeBullet = OtherActor->GetName().Contains(TEXT("Bullet"));
+	}
+
+	if (bLooksLikeBullet)
+	{
+		OtherActor->Destroy();
+
+		ShieldEnergy = FMath::Max(0.f, ShieldEnergy - BulletImpactCost);
+		if (ShieldEnergy <= 0.f)
+		{
+			BreakShield();
+			return; // BreakShield already refreshed visuals/collision
+		}
+
+		UpdateEligibilityAndVisuals();
+	}
+}
+
+
+
+//end 1_14_26
 
 void ULGSShieldComponent::ToggleShield()
 {
@@ -39,30 +155,32 @@ void ULGSShieldComponent::DeactivateShield()
 	StopDrain();
 	StartRegenDelay();
 	UpdateEligibilityAndVisuals();
+
 }
 
 float ULGSShieldComponent::HandleIncomingDamage(float DamageAmount)
 {
+	// If shield isn't eligible, all damage passes through unchanged
 	if (!IsShieldActiveAndPowered() || DamageAmount <= 0.f)
 	{
-		return DamageAmount; // all damage passes through
+		return DamageAmount;
 	}
 
 	const float Absorb = FMath::Min(ShieldEnergy, DamageAmount);
 	ShieldEnergy -= Absorb;
 
+	// If we hit 0, shield breaks and any leftover damage passes through
 	if (ShieldEnergy <= 0.f)
 	{
 		BreakShield();
-		return DamageAmount - Absorb; // leftover
+		return DamageAmount - Absorb;
 	}
 
-	// If we took damage, kick regen timer
-	StartRegenDelay();
-
+	// Shield is still up; just refresh visuals/collision state
 	UpdateEligibilityAndVisuals();
 	return DamageAmount - Absorb;
 }
+
 
 void ULGSShieldComponent::StartDrain()
 {
@@ -170,7 +288,29 @@ void ULGSShieldComponent::BreakShield()
 	UpdateEligibilityAndVisuals();
 }
 
+
 void ULGSShieldComponent::UpdateEligibilityAndVisuals()
 {
-	// Phase 1: no visuals. Keep this function for later.
+	// (keep your eligibility logic if you want, or skip for now)
+
+	const bool bShow = bShieldActive && !bShieldBroken && ShieldEnergy > 0.f;
+
+	if (ShieldVisualComp)
+	{
+		ShieldVisualComp->SetHiddenInGame(!bShow, true);
+	}
+
+	if (ShieldCollisionComp)
+	{
+		if (bShow)
+		{
+			ShieldCollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			ShieldCollisionComp->SetGenerateOverlapEvents(true);
+		}
+		else
+		{
+			ShieldCollisionComp->SetGenerateOverlapEvents(false);
+			ShieldCollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
 }
