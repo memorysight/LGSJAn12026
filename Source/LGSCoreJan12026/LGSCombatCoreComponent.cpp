@@ -13,8 +13,9 @@ ULGSCombatCoreComponent::ULGSCombatCoreComponent()
 
 void ULGSCombatCoreComponent::BeginPlay()
 {
-	Super::BeginPlay();
 	OnCombatModeChanged.Broadcast(CombatMode);
+	Super::BeginPlay();
+	
 }
 
 void ULGSCombatCoreComponent::ToggleCombatMode()
@@ -43,21 +44,19 @@ void ULGSCombatCoreComponent::ToggleCombatMode()
 
 void ULGSCombatCoreComponent::SetCombatMode(ECombatMode NewMode)
 {
-
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] SetCombatMode %s -> %s"),
-	CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
-	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
+		CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
+		NewMode    == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
 
 	if (CombatMode == NewMode) return;
 
-	CombatMode = ECombatMode::Ranged;
+	CombatMode = NewMode; // ✅ use NewMode
 	OnCombatModeChanged.Broadcast(CombatMode);
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] SetCombatMode %s -> %s"),
-	CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
-	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
-
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] Now in %s"),
+		CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
 }
+
 
 void ULGSCombatCoreComponent::TryPrimary()
 {
