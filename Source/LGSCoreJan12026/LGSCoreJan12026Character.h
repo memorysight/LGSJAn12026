@@ -6,12 +6,16 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "InputAction.h"
+#include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
+
 //1_3_26
 #include "LGSCombatCoreComponent.h"
 //end 1_3_26
 //1/4/26
 #include "LGSWeaponDataAsset.h"
 //end 1_4_26
+
 #include "LGSCoreJan12026Character.generated.h"
 
 class UInputComponent;
@@ -71,7 +75,21 @@ class ALGSCoreJan12026Character : public ACharacter
 	UInputAction* ToggleCombatModeAction;
 	//end 1/2/26
 
+public:
+
+	//1_19_26 Shield 
+	UFUNCTION(BlueprintPure, Category="Shield|Components")
+	USceneComponent* GetShieldRootComp() const { return ShieldRootComp.Get(); }
+
+	UFUNCTION(BlueprintPure, Category="Shield|Components")
+	USphereComponent* GetShieldCollisionComp() const { return ShieldCollisionComp.Get(); }
+
+	UFUNCTION(BlueprintPure, Category="Shield|Components")
+	UStaticMeshComponent* GetShieldVisualComp() const { return ShieldVisualComp.Get(); }
+
+	//end 1_19_26
 	
+
 	//1_3_26
 	// --- Weapon visuals (mode swap) ---
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapons", meta=(AllowPrivateAccess="true"))
@@ -93,14 +111,35 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
-	//new 1_12_26
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
-	ULGSShieldComponent* ShieldComp = nullptr;
+	
 
 	// Input
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	UInputAction* ToggleShieldAction = nullptr;
-	//end1_12_26
+	//end 1_12_26
+	
+
+	//new 1_17_26
+	// Shield authored components (so they appear in BP Components)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<ULGSShieldComponent> ShieldComp;
+
+	//new 1/19_26
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<USceneComponent> ShieldRootComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<USphereComponent> ShieldCollisionComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UStaticMeshComponent> ShieldVisualComp;
+	//end 1_17AND1_19_26
+
+
+
+	
+	//end 1_17_26
+	
 
 	// DataAssets
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Data", meta=(AllowPrivateAccess="true"))
@@ -124,6 +163,8 @@ class ALGSCoreJan12026Character : public ACharacter
 	
 public:
 	ALGSCoreJan12026Character();
+
+
 
 protected:
 	/** Called for movement input */

@@ -18,6 +18,12 @@
 //end 1_3_26
 //new 1_4_26
 #include "LGSWeaponDataAsset.h"
+#include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
+//new 1_17_26
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+//end1_17_26
 //end 1_4_26
 //new 1_12_26
 #include "LGSShieldComponent.h"
@@ -44,6 +50,8 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	Mesh1P->bCastDynamicShadow = false;
 	Mesh1P->CastShadow = false;
 	Mesh1P->SetRelativeLocation(FVector(-30.f, 0.f, -150.f));
+
+	
 
 	//1/2/26
 	CombatCore = CreateDefaultSubobject<ULGSCombatCoreComponent>(TEXT("CombatCore"));
@@ -81,7 +89,39 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	//new 1_12_26
 	// in ctor:
 	ShieldComp = CreateDefaultSubobject<ULGSShieldComponent>(TEXT("ShieldComp"));
+	// LGSCoreJan12026Character.cpp (constructor)
+
+	ShieldRootComp = CreateDefaultSubobject<USceneComponent>(TEXT("ShieldRootComp"));
+	ShieldRootComp->SetupAttachment(Mesh1P); // or GetMesh() depending on where you want it
+
+	ShieldCollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("ShieldCollisionComp"));
+	ShieldCollisionComp->SetupAttachment(ShieldRootComp);
+	ShieldCollisionComp->InitSphereRadius(65.f);
+	ShieldCollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ShieldCollisionComp->SetGenerateOverlapEvents(false);
+
+	//1_17_26
+	ShieldCollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ShieldCollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+	ShieldCollisionComp->SetCollisionObjectType(ECC_WorldDynamic);
+
+	//end1_17_26
+
+	ShieldVisualComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShieldVisualComp"));
+	ShieldVisualComp->SetupAttachment(ShieldRootComp);
+	ShieldVisualComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ShieldVisualComp->SetHiddenInGame(true, true);
+
 	//end 1_12_26
+
+	//new 1_17_26
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[LGS Ctor] ShieldComp=%s Root=%s Coll=%s Vis=%s"),
+	*GetNameSafe(ShieldComp),
+	*GetNameSafe(ShieldRootComp),
+	*GetNameSafe(ShieldCollisionComp),
+	*GetNameSafe(ShieldVisualComp));
+	//end1_17_26
+	
 
 }
 
@@ -104,10 +144,24 @@ void ALGSCoreJan12026Character::BeginPlay()
 {
 	Super::BeginPlay();
 
+
 	//new 1_12_26 for testing
 	if (ShieldComp)
 	{
 		ShieldComp->ActivateShield();
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("BEGINPLAY HIT: %s  Class=%s  Project=%s"),
+		*GetNameSafe(this),
+		*GetClass()->GetName(),
+		*FPaths::ProjectDir());
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
+			FString::Printf(TEXT("BEGINPLAY HIT: %s"), *GetClass()->GetName()));
+		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan,
+			FString::Printf(TEXT("PROJECT DIR: %s"), *FPaths::ProjectDir()));
 	}
 	//end 1_12_26
 
@@ -121,9 +175,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 		*GetClass()->GetName(),
 		*GetNameSafe(Controller));
 		ApplyWeaponVisualsForMode(CombatCore->GetCombatMode());
-
 		
-
 	}
 }
 //end 1_3_26
@@ -305,29 +357,26 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 	ActiveComp->SetRelativeScale3D(FVector(1.f));
 }
 
-//new 1_12_26
+
+
+//new 1_16_26
 float ALGSCoreJan12026Character::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
-	float Remaining = DamageAmount;
-
 	if (ShieldComp)
 	{
-		Remaining = ShieldComp->HandleIncomingDamage(DamageAmount);
-
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[DMG] In=%.2f Remaining=%.2f Shield=%.2f"),
-			DamageAmount,
-			Remaining,
-			ShieldComp ? ShieldComp->GetShieldEnergy() : -1.f);
-
+		const float Remaining = ShieldComp->HandleIncomingDamage(DamageAmount, EventInstigator, DamageCauser);
 		if (Remaining <= 0.f)
 		{
 			return 0.f;
 		}
+
+		return Super::TakeDamage(Remaining, DamageEvent, EventInstigator, DamageCauser);
 	}
 
-	return Super::TakeDamage(Remaining, DamageEvent, EventInstigator, DamageCauser);
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
+
 
 void ALGSCoreJan12026Character::OnToggleShield()
 {

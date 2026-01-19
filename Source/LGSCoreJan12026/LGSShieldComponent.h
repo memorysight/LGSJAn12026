@@ -2,22 +2,19 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-//new 1_14_26
-#include "Engine/EngineTypes.h"
 #include "Templates/SubclassOf.h"
-#include "Components/PrimitiveComponent.h"
-//end 1_14_26
 #include "LGSShieldComponent.generated.h"
 
-//new 1_14_26
+class AActor;
+class ACharacter;
+class AController;
+class UPrimitiveComponent;
+class UNiagaraSystem;
 class USceneComponent;
 class USphereComponent;
 class UStaticMeshComponent;
-class UMaterialInterface;
-//end 1_14_26
 
-
-UCLASS(ClassGroup=(LGS), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Shield), meta=(BlueprintSpawnableComponent))
 class LGSCOREJAN12026_API ULGSShieldComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -25,7 +22,7 @@ class LGSCOREJAN12026_API ULGSShieldComponent : public UActorComponent
 public:
 	ULGSShieldComponent();
 
-	// Toggle/State
+	// ---- Public API ----
 	UFUNCTION(BlueprintCallable, Category="Shield")
 	void ToggleShield();
 
@@ -36,18 +33,26 @@ public:
 	void DeactivateShield();
 
 	UFUNCTION(BlueprintPure, Category="Shield")
-	bool IsShieldActiveAndPowered() const { return bShieldActive && !bShieldBroken && ShieldEnergy > 0.f; }
+	bool IsShieldActiveAndPowered() const { return bShieldActive && ShieldEnergy > 0.f && !bShieldBroken; }
 
-	// Damage gate: returns REMAINING damage after shield absorbs
-	float HandleIncomingDamage(float DamageAmount);
+	UFUNCTION(BlueprintCallable, Category="Shield|State")
+	void GetShieldState(float& OutEnergy, float& OutMax, bool& OutActive, bool& OutBroken) const;
 
-	UFUNCTION(BlueprintPure, Category="Shield")
+	UFUNCTION(BlueprintCallable, Category="Shield|State")
+	void ApplyShieldState(float InEnergy, float InMax, bool bInActive, bool bInBroken);
+
+	// Character calls this from TakeDamage override
+	float HandleIncomingDamage(float DamageAmount, AController* EventInstigator, AActor* DamageCauser);
+
+	// Optional convenience for logging / UI
+	UFUNCTION(BlueprintPure, Category="Shield|State")
 	float GetShieldEnergy() const { return ShieldEnergy; }
 
-	UFUNCTION(BlueprintPure, Category="Shield")
-	float GetMaxShieldEnergy() const { return MaxShieldEnergy; }
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//new 1_14_26
+	// ---- Overlap ----
 	UFUNCTION()
 	void OnShieldBeginOverlap(
 		UPrimitiveComponent* OverlappedComp,
@@ -55,86 +60,135 @@ public:
 		UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex,
 		bool bFromSweep,
-		const FHitResult& SweepResult
-	);
+		const FHitResult& SweepResult);
 
-	// Optional: let you tune/assign in BP
-	UPROPERTY(EditAnywhere, Category="Shield|Collision")
-	bool bDestroyBulletsOnOverlap = true;
-
-	UPROPERTY(EditAnywhere, Category="Shield|Collision")
-	TSubclassOf<AActor> BulletClass;
-
-	UPROPERTY(EditAnywhere, Category="Shield|Collision")
-	float BulletImpactCost = 1.f;
-
-	UPROPERTY(EditAnywhere, Category="Shield|Collision")
-	TEnumAsByte<ECollisionChannel> ProjectileChannel = ECC_WorldDynamic;
-
-
-	// Components (created at runtime)
-	UPROPERTY(Transient)
-	TObjectPtr<USceneComponent> ShieldRootComp = nullptr;
-
-	UPROPERTY(Transient)
-	TObjectPtr<USphereComponent> ShieldCollisionComp = nullptr;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UStaticMeshComponent> ShieldVisualComp = nullptr;
-
-	// Visuals
-	UPROPERTY(EditAnywhere, Category="Shield|Visual")
-	UMaterialInterface* ShieldMaterial = nullptr;
-
-	UPROPERTY(EditAnywhere, Category="Shield|Visual")
-	float ShieldSphereRadius = 65.f;
-	//end 1_14_26
-
-protected:
-	virtual void BeginPlay() override;
-
-
-private:
-	void StartDrain();
-	void StopDrain();
+	// ---- Internals ----
+	void StartShieldDrain();
+	void StopShieldDrain();
 	void DrainTick();
 
-	void StartRegenDelay();
-	void StartRegen();
-	void StopRegen();
+	void StartShieldRegenWithDelay();
+	void StartShieldRegen();
+	void StopShieldRegen();
 	void RegenTick();
 
 	void BreakShield();
-	void UpdateEligibilityAndVisuals();
+	void RefreshShieldVisualState();
 
-	//new _1_14_26
-	AActor* GetOwnerActorChecked() const;
-	//end 1_14_26
+	// Burst / TimeShift
+	void TriggerShieldBurst();
+	void UpdateShieldBurstEligibility();
+	void MaybeStartBurstTimeShift(int32 NumEnemiesAffected, bool bWasGodBurst);
+	void EndBurstTimeShift();
 
-private:
-	UPROPERTY(EditAnywhere, Category="Shield|Config")
+	ACharacter* GetOwningCharacter() const;
+
+protected:
+	// ---- References to Character-owned components (NOT spawned here) ----
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	USceneComponent* ShieldRootComp = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	USphereComponent* ShieldCollisionComp = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	UStaticMeshComponent* ShieldVisualComp = nullptr;
+
+	// ---- Setup ----
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Setup")
+	FName AttachSocketName = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Setup")
+	float CollisionSphereRadius = 65.f;
+
+	// ---- Core ----
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Config")
 	float MaxShieldEnergy = 100.f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Runtime", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Runtime")
 	float ShieldEnergy = 100.f;
 
-	UPROPERTY(EditAnywhere, Category="Shield|Config")
-	float DrainPerSecond = 20.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Config")
+	float ShieldDrainPerSecond = 20.f;
 
-	UPROPERTY(EditAnywhere, Category="Shield|Config")
-	float RegenPerSecond = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Config")
+	float ShieldRegenPerSecond = 10.f;
 
-	UPROPERTY(EditAnywhere, Category="Shield|Config")
-	float RegenDelaySeconds = 1.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Config")
+	float ShieldRegenDelay = 1.5f;
 
-	UPROPERTY(BlueprintReadOnly, Category="Shield|State", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Config")
+	bool bDestroyBulletsOnOverlap = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Config")
+	TSubclassOf<AActor> BulletClass;
+
+	// ---- Burst ----
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst")
+	bool bShieldBurstEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst")
+	float ShieldBurstMinChargePercent = 0.7f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Shield|Burst")
+	bool bShieldBurstEligible = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst")
+	float ShieldBurstRadius = 600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst")
+	float ShieldBurstBaseDamage = 50.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst")
+	float ShieldBurstGodDamageMultiplier = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst")
+	float ShieldBurstDudDamageMultiplier = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst")
+	float ShieldBurstKnockbackStrength = 2000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|FX")
+	UNiagaraSystem* ShieldBurstAverageFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|FX")
+	UNiagaraSystem* ShieldBurstGodFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|FX")
+	UNiagaraSystem* ShieldBurstDudFX = nullptr;
+
+	// ---- TimeShift ----
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|TimeShift")
+	bool bBurstTimeShiftEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|TimeShift", meta=(ClampMin="0.01", ClampMax="1.0"))
+	float BurstTimeShiftGlobalDilation = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|TimeShift", meta=(ClampMin="0.1", ClampMax="2.0"))
+	float BurstTimeShiftPlayerDilation = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|TimeShift", meta=(ClampMin="0.05", ClampMax="2.0"))
+	float BurstTimeShiftDuration = 0.4f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Shield|Burst|TimeShift")
+	int32 BurstTimeShiftMinEnemies = 2;
+
+	UPROPERTY(BlueprintReadOnly, Category="Shield|Burst|TimeShift")
+	int32 LastBurstEnemiesInRadius = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category="Shield|Burst|TimeShift")
+	float LastBurstEnemyProximityScore = 0.f;
+
+	// ---- State ----
+	UPROPERTY(BlueprintReadOnly, Category="Shield|State")
 	bool bShieldActive = false;
 
-	UPROPERTY(BlueprintReadOnly, Category="Shield|State", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(BlueprintReadOnly, Category="Shield|State")
 	bool bShieldBroken = false;
-	
 
-	FTimerHandle Timer_Drain;
-	FTimerHandle Timer_Regen;
-	FTimerHandle Timer_RegenDelay;
+	// ---- Timers ----
+	FTimerHandle Timer_ShieldDrain;
+	FTimerHandle Timer_ShieldRegen;
+	FTimerHandle Timer_ShieldRegenDelay;
+	FTimerHandle Timer_BurstTimeShift;
 };
