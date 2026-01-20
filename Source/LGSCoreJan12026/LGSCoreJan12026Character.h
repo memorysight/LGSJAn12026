@@ -20,6 +20,12 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 class ULGSCombatCoreComponent;
+//new_1_19_26
+class ULGSShieldComponent;
+class USphereComponent;
+class UStaticMeshComponent;
+class USceneComponent;
+//end_1_19
 //1_3_26
 class UStaticMeshComponent;
 //end 1_3_26
@@ -89,6 +95,21 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
+	//new 1_19_26
+	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield", meta=(AllowPrivateAccess="true"))
+	// ULGSShieldComponent* ShieldComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	USceneComponent* ShieldRootComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	USphereComponent* ShieldCollisionComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
+	UStaticMeshComponent* ShieldVisualComp;
+
+
+	//end 1_19
 
 	// DataAssets
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Data", meta=(AllowPrivateAccess="true"))
@@ -107,6 +128,12 @@ class ALGSCoreJan12026Character : public ACharacter
 	
 public:
 	ALGSCoreJan12026Character();
+
+	//optionally
+	// USceneComponent* GetShieldRootComp() const { return ShieldRootComp; }
+	// USphereComponent* GetShieldCollisionComp() const { return ShieldCollisionComp; }
+	// UStaticMeshComponent* GetShieldVisualComp() const { return ShieldVisualComp; }
+
 
 protected:
 	/** Called for movement input */

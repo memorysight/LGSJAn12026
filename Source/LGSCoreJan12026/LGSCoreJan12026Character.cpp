@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LGSCoreJan12026Character.h"
-#include "LGSCoreJan12026Projectile.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+//new 1_191_26
+#include "Components/SphereComponent.h"
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+//end1_19
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 //1/2/26
@@ -75,6 +79,15 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	RangedWeaponVisual->SetOwnerNoSee(false);
 	MeleeWeaponVisual->SetOwnerNoSee(false);
 
+	ShieldRootComp = CreateDefaultSubobject<USceneComponent>(TEXT("ShieldRootComp"));
+	ShieldRootComp->SetupAttachment(GetCapsuleComponent());
+
+	ShieldCollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("ShieldCollisionComp"));
+	ShieldCollisionComp->SetupAttachment(ShieldRootComp);
+
+	ShieldVisualComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShieldVisualComp"));
+	ShieldVisualComp->SetupAttachment(ShieldRootComp);
+
 
 }
 
@@ -87,7 +100,13 @@ void ALGSCoreJan12026Character::NotifyControllerChanged()
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
+			if (!DefaultMappingContext)
+			{
+				UE_LOG(LogTemplateCharacter, Error, TEXT("[INPUT] DefaultMappingContext is NULL"));
+				return;
+			}
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+
 		}
 	}
 }
