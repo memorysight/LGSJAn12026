@@ -96,8 +96,8 @@ class ALGSCoreJan12026Character : public ACharacter
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
 	//new 1_19_26
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield", meta=(AllowPrivateAccess="true"))
-	// ULGSShieldComponent* ShieldComp;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield", meta=(AllowPrivateAccess="true"))
+	ULGSShieldComponent* ShieldComp;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield|Components", meta=(AllowPrivateAccess="true"))
 	USceneComponent* ShieldRootComp;

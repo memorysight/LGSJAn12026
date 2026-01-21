@@ -14,6 +14,7 @@
 //end1_19
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
+#include "LGSShieldComponent.h"
 //1/2/26
 #include "LGSCombatCoreComponent.h"
 //1/2/26
@@ -50,6 +51,10 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	CombatCore = CreateDefaultSubobject<ULGSCombatCoreComponent>(TEXT("CombatCore"));
 	//1/2/26
 
+	//new 1_21_26
+	ShieldComp = CreateDefaultSubobject<ULGSShieldComponent>(TEXT("ShieldComp"));
+	//end 1_21_26
+
 	//new 1_3_29
 	// --- Weapon visuals (simple first pass) ---
 	RangedWeaponVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RangedWeaponVisual"));
@@ -68,12 +73,10 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	MeleeWeaponVisual->SetVisibility(false, true);
 	//end 1_3_26
 
-	//2029 is the time now..
+	
 	RangedWeaponVisual->SetStaticMesh(nullptr);
 	MeleeWeaponVisual->SetStaticMesh(nullptr);
-	//mostly
-
-	//hmmm, still hurts
+	
 	RangedWeaponVisual->SetOnlyOwnerSee(true);
 	MeleeWeaponVisual->SetOnlyOwnerSee(true);
 	RangedWeaponVisual->SetOwnerNoSee(false);
@@ -87,6 +90,8 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 
 	ShieldVisualComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShieldVisualComp"));
 	ShieldVisualComp->SetupAttachment(ShieldRootComp);
+
+	
 
 
 }
