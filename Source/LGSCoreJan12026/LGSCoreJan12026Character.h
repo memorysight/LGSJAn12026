@@ -5,30 +5,29 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
-#include "InputAction.h"
 //1_3_26
 #include "LGSCombatCoreComponent.h"
 //end 1_3_26
-//new 1/4/26
+//1/4/26
 #include "LGSWeaponDataAsset.h"
 //end 1_4_26
+//new 1_23_26
+class UInputAction;
+//end 1_23_26
 #include "LGSCoreJan12026Character.generated.h"
 
 class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
-class UInputAction;
 class UInputMappingContext;
 class ULGSCombatCoreComponent;
-//new_1_19_26
+//1_19_26
 class ULGSShieldComponent;
 class USphereComponent;
 class UStaticMeshComponent;
 class USceneComponent;
 //end_1_19
-//1_3_26
-class UStaticMeshComponent;
-//end 1_3_26
+
 
 struct FInputActionValue;
 
@@ -63,6 +62,18 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* LookAction;
 
+	//new 1_23_26
+	// Shield input
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Input", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UInputAction> ToggleShieldAction;
+
+	UFUNCTION()
+	void OnToggleShieldPressed();
+	
+	//end 1_23_26
+	
+
+
 	//1/2/26
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat", meta=(AllowPrivateAccess="true"))
 	ULGSCombatCoreComponent* CombatCore;
@@ -88,14 +99,14 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapons|Sockets", meta=(AllowPrivateAccess="true"))
 	FName MeleeWeaponSocketName = TEXT("weapon_r");
 
-	//new 1_6_26
+	//1_6_26
 	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
 	FRotator RangedVisualRotationFix = FRotator::ZeroRotator;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
-	//new 1_19_26
+	//1_19_26
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield", meta=(AllowPrivateAccess="true"))
 	ULGSShieldComponent* ShieldComp;
 
@@ -129,10 +140,10 @@ class ALGSCoreJan12026Character : public ACharacter
 public:
 	ALGSCoreJan12026Character();
 
-	//optionally
-	// USceneComponent* GetShieldRootComp() const { return ShieldRootComp; }
-	// USphereComponent* GetShieldCollisionComp() const { return ShieldCollisionComp; }
-	// UStaticMeshComponent* GetShieldVisualComp() const { return ShieldVisualComp; }
+	
+	USceneComponent* GetShieldRootComp() const { return ShieldRootComp; }
+	USphereComponent* GetShieldCollisionComp() const { return ShieldCollisionComp; }
+	UStaticMeshComponent* GetShieldVisualComp() const { return ShieldVisualComp; }
 
 
 protected:

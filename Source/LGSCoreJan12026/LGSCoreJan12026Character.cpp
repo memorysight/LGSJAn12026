@@ -7,21 +7,25 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-//new 1_191_26
+//1_19_26
 #include "Components/SphereComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 //end1_19
+//new 1_23_26
+#include "InputAction.h"
+#include "LGSShieldComponent.h"
+//end 1_23_26
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 #include "LGSShieldComponent.h"
 //1/2/26
 #include "LGSCombatCoreComponent.h"
 //1/2/26
-//new 1_3_26
+//1_3_26
 #include "Components/StaticMeshComponent.h"
 //end 1_3_26
-//new 1_4_26
+//1_4_26
 #include "LGSWeaponDataAsset.h"
 //end 1_4_26
 
@@ -51,11 +55,11 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	CombatCore = CreateDefaultSubobject<ULGSCombatCoreComponent>(TEXT("CombatCore"));
 	//1/2/26
 
-	//new 1_21_26
+	//1_21_26
 	ShieldComp = CreateDefaultSubobject<ULGSShieldComponent>(TEXT("ShieldComp"));
 	//end 1_21_26
 
-	//new 1_3_29
+	//1_3_29
 	// --- Weapon visuals (simple first pass) ---
 	RangedWeaponVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RangedWeaponVisual"));
 	RangedWeaponVisual->SetupAttachment(Mesh1P);
@@ -91,9 +95,22 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	ShieldVisualComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShieldVisualComp"));
 	ShieldVisualComp->SetupAttachment(ShieldRootComp);
 
+	//new 1_23_26 
+	// --- Shield defaults: start OFF (like Mega) ---
+	if (ShieldVisualComp)
+	{
+		ShieldVisualComp->SetHiddenInGame(true, true);
+		ShieldVisualComp->SetVisibility(false, true);
+		ShieldVisualComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (ShieldCollisionComp)
+	{
+		ShieldCollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ShieldCollisionComp->SetGenerateOverlapEvents(false);
+	}
+	//end 1_23_26
 	
-
-
 }
 
 void ALGSCoreJan12026Character::NotifyControllerChanged()
@@ -116,7 +133,7 @@ void ALGSCoreJan12026Character::NotifyControllerChanged()
 	}
 }
 
-//new 1_3_26
+//1_3_26
 void ALGSCoreJan12026Character::BeginPlay()
 {
 	Super::BeginPlay();
@@ -125,16 +142,23 @@ void ALGSCoreJan12026Character::BeginPlay()
 	{
 		CombatCore->OnCombatModeChanged.AddDynamic(this, &ALGSCoreJan12026Character::HandleCombatModeChanged);
 
-		//hmmm
+		//test
 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[BEGINPLAY] Pawn=%s Class=%s Controller=%s"),
 		*GetNameSafe(this),
 		*GetClass()->GetName(),
 		*GetNameSafe(Controller));
 		ApplyWeaponVisualsForMode(CombatCore->GetCombatMode());
-
 		
-
 	}
+
+	//new 1_23_26 make it extra deterministic
+	if (ShieldComp)
+	{
+		// Ensures the component applies its initial "off" state on play start
+		ShieldComp->DeactivateShield();
+	}
+	//end 1_23_26
+	
 }
 //end 1_3_26
 void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -160,6 +184,18 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 				CombatCore, &ULGSCombatCoreComponent::ToggleCombatMode
 			);
 		}
+
+		//new 1_23_26 Shield Toggle
+		if (ToggleShieldAction)
+		{
+			EnhancedInputComponent->BindAction(
+				ToggleShieldAction,
+				ETriggerEvent::Started,
+				this,
+				&ALGSCoreJan12026Character::OnToggleShieldPressed
+			);
+		}
+		//end 1_23_26
 	}
 	else
 	{
@@ -194,7 +230,7 @@ void ALGSCoreJan12026Character::Look(const FInputActionValue& Value)
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
 }
-//new 1_4_26
+//1_4_26
 void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 {
 	//apparently this does something:
@@ -205,7 +241,7 @@ void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
 }
 
-//LGs
+//LGS
 
 void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 {
@@ -218,7 +254,7 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
     UStaticMeshComponent* InactiveComp = bIsRanged ? MeleeWeaponVisual : RangedWeaponVisual;
 
     ULGSWeaponDataAsset* ActiveDA = bIsRanged ? RangedWeaponData : MeleeWeaponData;
-	//new 1_6_26
+	//1_6_26
 	UE_LOG(LogTemplateCharacter, Warning,
 	TEXT("[VISUAL PICK] Mode=%s ActiveDA=%s DAType=%d Mesh=%s"),
 	bIsRanged ? TEXT("Ranged") : TEXT("Melee"),
@@ -304,3 +340,13 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
     ActiveComp->SetHiddenInGame(false, true);
 	ActiveComp->SetRelativeScale3D(FVector(1.f));
 }
+
+//new 1_23_26
+void ALGSCoreJan12026Character::OnToggleShieldPressed()
+{
+	if (ShieldComp)
+	{
+		ShieldComp->ToggleShield();
+	}
+}
+//end 1_23_26
