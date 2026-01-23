@@ -62,27 +62,12 @@ void ULGSShieldComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AActor* Owner = GetOwner();
-	if (!Owner) return;
+	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
+	if (!OwnerChar) return;
 
-	// Prefer finding by component name (stable across refactors)
-	ShieldRootComp = Cast<USceneComponent>(Owner->FindComponentByClass<USceneComponent>());
-	ShieldCollisionComp = Cast<USphereComponent>(Owner->FindComponentByClass<USphereComponent>());
-	ShieldVisualComp = Cast<UStaticMeshComponent>(Owner->FindComponentByClass<UStaticMeshComponent>());
-
-	// Better: find by exact names you set in the Character constructor
-	if (!ShieldRootComp)
-	{
-		ShieldRootComp = FindObject<USceneComponent>(Owner, TEXT("ShieldRootComp"));
-	}
-	if (!ShieldCollisionComp)
-	{
-		ShieldCollisionComp = FindObject<USphereComponent>(Owner, TEXT("ShieldCollisionComp"));
-	}
-	if (!ShieldVisualComp)
-	{
-		ShieldVisualComp = FindObject<UStaticMeshComponent>(Owner, TEXT("ShieldVisualComp"));
-	}
+	ShieldRootComp      = OwnerChar->GetShieldRootComp();
+	ShieldCollisionComp = OwnerChar->GetShieldCollisionComp();
+	ShieldVisualComp    = OwnerChar->GetShieldVisualComp();
 
 	UE_LOG(LogTemp, Warning, TEXT("[SHIELD] Root=%s Collision=%s Visual=%s"),
 		*GetNameSafe(ShieldRootComp),
@@ -91,11 +76,13 @@ void ULGSShieldComponent::BeginPlay()
 
 	if (ShieldCollisionComp)
 	{
-		ShieldCollisionComp->OnComponentBeginOverlap.AddDynamic(this, &ULGSShieldComponent::OnShieldBeginOverlap);
+		ShieldCollisionComp->OnComponentBeginOverlap.AddDynamic(
+			this, &ULGSShieldComponent::OnShieldBeginOverlap);
 	}
 
 	RefreshShieldVisualState();
 }
+
 
 
 
@@ -138,19 +125,16 @@ void ULGSShieldComponent::ActivateShield()
 	StopShieldRegen();
 }
 
+//new 1_23_26 updated because shield won't toggle
 void ULGSShieldComponent::DeactivateShield()
 {
-	if (!bShieldActive)
-	{
-		return;
-	}
-
 	bShieldActive = false;
 	RefreshShieldVisualState();
 
 	StopShieldDrain();
 	StartShieldRegenWithDelay();
 }
+//end 1_23_26
 
 float ULGSShieldComponent::HandleIncomingDamage(float DamageAmount, AController* /*EventInstigator*/, AActor* /*DamageCauser*/)
 {
@@ -355,6 +339,7 @@ void ULGSShieldComponent::RefreshShieldVisualState()
 	if (ShieldVisualComp)
 	{
 		ShieldVisualComp->SetHiddenInGame(!bShow, true);
+		ShieldVisualComp->SetVisibility(bShow, true);
 	}
 
 	if (ShieldCollisionComp)

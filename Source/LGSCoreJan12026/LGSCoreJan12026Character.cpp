@@ -138,6 +138,35 @@ void ALGSCoreJan12026Character::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//new 1_23_26 test if pawn is correct
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[PAWN] BeginPlay: %s (%s)"),
+	*GetNameSafe(this), *GetClass()->GetName());
+	//end 1_23_26
+
+	//new 1_23_26
+	if (APlayerController* PC = Cast<APlayerController>(Controller))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+		{
+			if (DefaultMappingContext)
+			{
+				Subsystem->ClearAllMappings();
+				Subsystem->AddMappingContext(DefaultMappingContext, 0);
+				UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] Mapping context applied in BeginPlay"));
+			}
+			else
+			{
+				UE_LOG(LogTemplateCharacter, Error, TEXT("[INPUT] DefaultMappingContext is NULL (BeginPlay)"));
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] No PlayerController in BeginPlay"));
+	}
+	//end 1_23_26
+
 	if (CombatCore)
 	{
 		CombatCore->OnCombatModeChanged.AddDynamic(this, &ALGSCoreJan12026Character::HandleCombatModeChanged);
@@ -184,6 +213,12 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 				CombatCore, &ULGSCombatCoreComponent::ToggleCombatMode
 			);
 		}
+
+		//1_23_26 test for intended performance
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] SetupPlayerInputComponent: ToggleShieldAction=%s"),
+		*GetNameSafe(ToggleShieldAction));
+		//end 1_23_26
+		
 
 		//new 1_23_26 Shield Toggle
 		if (ToggleShieldAction)
@@ -344,9 +379,16 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 //new 1_23_26
 void ALGSCoreJan12026Character::OnToggleShieldPressed()
 {
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] ToggleShield PRESSED"));
+
 	if (ShieldComp)
 	{
 		ShieldComp->ToggleShield();
 	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("[INPUT] ShieldComp is NULL"));
+	}
 }
+
 //end 1_23_26
