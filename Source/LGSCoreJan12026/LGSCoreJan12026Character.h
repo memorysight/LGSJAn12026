@@ -11,9 +11,12 @@
 //1/4/26
 #include "LGSWeaponDataAsset.h"
 //end 1_4_26
-//new 1_23_26
+//1_23_26
 class UInputAction;
 //end 1_23_26
+//new 1_27
+class ULGSHyperDriveComponent;
+//end 1_27
 #include "LGSCoreJan12026Character.generated.h"
 
 class UInputComponent;
@@ -62,15 +65,21 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* LookAction;
 
-	//new 1_23_26
+	//1_23_26
 	// Shield input
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Input", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UInputAction> ToggleShieldAction;
 
 	UFUNCTION()
 	void OnToggleShieldPressed();
-	
 	//end 1_23_26
+
+	//new HyperDrive 1_27_26
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="HyperDrive", meta=(AllowPrivateAccess="true"))
+	ULGSHyperDriveComponent* HyperDriveComp = nullptr;
+
+	virtual void Landed(const FHitResult& Hit) override;
+	//end 1_27_26
 	
 
 

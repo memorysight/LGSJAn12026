@@ -12,13 +12,15 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 //end1_19
-//new 1_23_26
+//1_23_26
 #include "InputAction.h"
 #include "LGSShieldComponent.h"
 //end 1_23_26
+//new 1_27
+#include "LGSHyperDriveComponent.h"
+//end 1_27
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
-#include "LGSShieldComponent.h"
 //1/2/26
 #include "LGSCombatCoreComponent.h"
 //1/2/26
@@ -95,7 +97,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	ShieldVisualComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShieldVisualComp"));
 	ShieldVisualComp->SetupAttachment(ShieldRootComp);
 
-	//new 1_23_26 
+	//1_23_26 
 	// --- Shield defaults: start OFF (like Mega) ---
 	if (ShieldVisualComp)
 	{
@@ -110,6 +112,10 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 		ShieldCollisionComp->SetGenerateOverlapEvents(false);
 	}
 	//end 1_23_26
+
+	//new HyperDrive 1_27_26
+	HyperDriveComp = CreateDefaultSubobject<ULGSHyperDriveComponent>(TEXT("HyperDriveComp"));
+	//end 1_27_26
 	
 }
 
@@ -392,3 +398,14 @@ void ALGSCoreJan12026Character::OnToggleShieldPressed()
 }
 
 //end 1_23_26
+
+//new HyperDrive 1_27_26
+void ALGSCoreJan12026Character::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+	if (HyperDriveComp)
+	{
+		HyperDriveComp->HandleLanded(Hit);
+	}
+}
+//end 1_27_26
