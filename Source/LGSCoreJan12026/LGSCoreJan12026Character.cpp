@@ -397,7 +397,7 @@ void ALGSCoreJan12026Character::OnToggleShieldPressed()
 
 //end 1_23_26
 
-//new HyperDrive 1_27_26
+//new HyperDrive 1_27_26:  Careful adding HyperRail
 void ALGSCoreJan12026Character::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
