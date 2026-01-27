@@ -3,11 +3,12 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/EngineTypes.h"
-#include "TimerManager.h"
 
 #include "LGSHyperDriveComponent.generated.h"
 
 class UNiagaraSystem;
+class ACharacter;
+class UCharacterMovementComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHyperDriveSimple);
 
@@ -19,15 +20,20 @@ class LGSCOREJAN12026_API ULGSHyperDriveComponent : public UActorComponent
 public:
 	ULGSHyperDriveComponent();
 
-	// --- API ---
+	// ===== API =====
+
 	UFUNCTION(BlueprintCallable, Category="HyperDrive")
 	void RegisterKill();
 
 	UFUNCTION(BlueprintPure, Category="HyperDrive")
 	bool IsHyperDriveActive() const { return bHyperDriveActive; }
 
-	// Called by the owning Character's Landed()
+	// Called by owning Character's Landed()
 	void HandleLanded(const FHitResult& Hit);
+
+	// Railgun TimeShift trigger (called by projectile / hit logic)
+	UFUNCTION(BlueprintCallable, Category="HyperDrive|Railgun")
+	void NotifyHyperRailgunHit(int32 EnemiesHit, bool bWasKill);
 
 	// FX hooks (bind in BP or character)
 	UPROPERTY(BlueprintAssignable, Category="HyperDrive|FX")
@@ -39,7 +45,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	// --- internals ---
+	// ===== Internals =====
 	void BeginHyperDrive();
 	void EndHyperDrive();
 	void ResetKillStreak();
@@ -47,9 +53,12 @@ protected:
 	// Landing burst
 	void TriggerLandingBurst();
 
+	// Railgun TimeShift reset
+	void EndBurstTimeShift();
+
 	// Helpers
-	class ACharacter* GetOwnerCharacter() const;
-	class UCharacterMovementComponent* GetMoveComp() const;
+	ACharacter* GetOwnerCharacter() const;
+	UCharacterMovementComponent* GetMoveComp() const;
 
 protected:
 	// ===== HyperDrive config =====
@@ -62,7 +71,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Config")
 	float HyperDriveDuration = 10.f;
 
-	// ===== state =====
+	// ===== State =====
 	UPROPERTY(BlueprintReadOnly, Category="HyperDrive")
 	bool bHyperDriveActive = false;
 
@@ -81,35 +90,31 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category="Movement|HyperDrive")
 	float BaseJumpZVelocity = 0.f;
-	
-	//1_27 ===== HyperRailgun TimeShift (MEGA 11/28) =====
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-    bool bHyperRailgunTimeShiftEnabled = true;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift", meta=(ClampMin="0.0", ClampMax="1.0"))
-    float HyperRailgunTimeShiftChance = 0.3f; // 30%
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-    float HyperRailgunGlobalDilation = 0.15f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-    float HyperRailgunPlayerDilation = 1.0f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-    float HyperRailgunDuration = 0.25f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-    int32 HyperRailgunMinEnemies = 1;
-    
-    UFUNCTION(BlueprintCallable, Category="HyperDrive|Railgun")
-    void NotifyHyperRailgunHit(int32 EnemiesHit, bool bWasKill);
-    
-    protected:
-    FTimerHandle Timer_BurstTimeShift;
-    
-    UFUNCTION()
-    void EndBurstTimeShift();
+
+	// ===== HyperRailgun TimeShift (MEGA 11/28) =====
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+	bool bHyperRailgunTimeShiftEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float HyperRailgunTimeShiftChance = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+	float HyperRailgunGlobalDilation = 0.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+	float HyperRailgunPlayerDilation = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+	float HyperRailgunDuration = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+	int32 HyperRailgunMinEnemies = 1;
+
+	FTimerHandle Timer_BurstTimeShift;
+
+	// Recommended: restore previous values (safer than forcing 1.0)
+	float CachedPrevGlobalDilation = 1.0f;
+	float CachedPrevOwnerDilation  = 1.0f;
 
 	// ===== Landing Burst (MEGA 12/10) =====
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="LandingBurst")

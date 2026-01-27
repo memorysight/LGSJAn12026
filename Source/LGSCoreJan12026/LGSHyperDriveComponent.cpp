@@ -10,6 +10,8 @@
 #include "Engine/EngineTypes.h"     // FOverlapResult, etc.
 #include "Components/PrimitiveComponent.h"
 #include "Engine/OverlapResult.h"
+#include "TimerManager.h"
+#include "Engine/World.h"
 
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
