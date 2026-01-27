@@ -144,12 +144,12 @@ void ALGSCoreJan12026Character::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//new 1_23_26 test if pawn is correct
+	//1_23_26 test if pawn is correct
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[PAWN] BeginPlay: %s (%s)"),
 	*GetNameSafe(this), *GetClass()->GetName());
 	//end 1_23_26
 
-	//new 1_23_26
+	//1_23_26
 	if (APlayerController* PC = Cast<APlayerController>(Controller))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
@@ -186,7 +186,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 		
 	}
 
-	//new 1_23_26 make it extra deterministic
+	//1_23_26 make it extra deterministic
 	if (ShieldComp)
 	{
 		// Ensures the component applies its initial "off" state on play start
@@ -243,8 +243,6 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input Component!"), *GetNameSafe(this));
 	}
 }
-
-
 
 void ALGSCoreJan12026Character::Move(const FInputActionValue& Value)
 {
@@ -382,7 +380,7 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 	ActiveComp->SetRelativeScale3D(FVector(1.f));
 }
 
-//new 1_23_26
+//1_23_26
 void ALGSCoreJan12026Character::OnToggleShieldPressed()
 {
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] ToggleShield PRESSED"));
