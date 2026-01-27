@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/EngineTypes.h"
+#include "TimerManager.h"
 
 #include "LGSHyperDriveComponent.generated.h"
 
@@ -80,6 +81,35 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category="Movement|HyperDrive")
 	float BaseJumpZVelocity = 0.f;
+	
+	//1_27 ===== HyperRailgun TimeShift (MEGA 11/28) =====
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+    bool bHyperRailgunTimeShiftEnabled = true;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift", meta=(ClampMin="0.0", ClampMax="1.0"))
+    float HyperRailgunTimeShiftChance = 0.3f; // 30%
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+    float HyperRailgunGlobalDilation = 0.15f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+    float HyperRailgunPlayerDilation = 1.0f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+    float HyperRailgunDuration = 0.25f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+    int32 HyperRailgunMinEnemies = 1;
+    
+    UFUNCTION(BlueprintCallable, Category="HyperDrive|Railgun")
+    void NotifyHyperRailgunHit(int32 EnemiesHit, bool bWasKill);
+    
+    protected:
+    FTimerHandle Timer_BurstTimeShift;
+    
+    UFUNCTION()
+    void EndBurstTimeShift();
 
 	// ===== Landing Burst (MEGA 12/10) =====
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="LandingBurst")

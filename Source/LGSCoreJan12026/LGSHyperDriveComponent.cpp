@@ -128,11 +128,122 @@ void ULGSHyperDriveComponent::EndHyperDrive()
 	OnHyperDriveEnded.Broadcast();
 }
 
+void ULGSHyperDriveComponent::NotifyHyperRailgunHit(int32 EnemiesHit, bool bWasKill)
+{
+	// 1) bail if disabled
+	if (!bHyperRailgunTimeShiftEnabled)
+	{
+		return;
+	}
+
+	// 2) bail if not in HyperDrive
+	if (!bHyperDriveActive)
+	{
+		return;
+	}
+
+	// 3) bail if not kill (optional, matches MEGA "finisher" feel)
+	if (!bWasKill)
+	{
+		return;
+	}
+
+	// 4) bail if EnemiesHit < min
+	if (EnemiesHit < HyperRailgunMinEnemies)
+	{
+		return;
+	}
+
+	// 5) RNG roll vs chance
+	const float Roll = FMath::FRand(); // [0,1)
+	if (Roll > HyperRailgunTimeShiftChance)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	ACharacter* OwnerChar = GetOwnerCharacter();
+	if (!OwnerChar)
+	{
+		return;
+	}
+
+	// 6) Apply global dilation (world-impacting)
+	UGameplayStatics::SetGlobalTimeDilation(World, HyperRailgunGlobalDilation);
+
+	// 7) Apply player dilation (component-owned)
+	OwnerChar->CustomTimeDilation = HyperRailgunPlayerDilation;
+
+	// 8) timer → EndBurstTimeShift
+	World->GetTimerManager().ClearTimer(Timer_BurstTimeShift);
+	World->GetTimerManager().SetTimer(
+		Timer_BurstTimeShift,
+		this,
+		&ULGSHyperDriveComponent::EndBurstTimeShift,
+		HyperRailgunDuration,
+		false
+	);
+}
+
+void ULGSHyperDriveComponent::EndBurstTimeShift()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	ACharacter* OwnerChar = GetOwnerCharacter();
+
+	// 9) reset dilations to normal
+	UGameplayStatics::SetGlobalTimeDilation(World, 1.0f);
+
+	if (OwnerChar)
+	{
+		OwnerChar->CustomTimeDilation = 1.0f;
+	}
+
+	World->GetTimerManager().ClearTimer(Timer_BurstTimeShift);
+}
+
 void ULGSHyperDriveComponent::ResetKillStreak()
 {
 	if (bHyperDriveActive) return;
 	KillStreakCount = 0;
 }
+
+
+
+// ===== HyperRailgun TimeShift (MEGA 11/28) =====
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+bool bHyperRailgunTimeShiftEnabled = true;
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift", meta=(ClampMin="0.0", ClampMax="1.0"))
+float HyperRailgunTimeShiftChance = 0.3f; // 30%
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+float HyperRailgunGlobalDilation = 0.15f;
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+float HyperRailgunPlayerDilation = 1.0f;
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+float HyperRailgunDuration = 0.25f;
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
+int32 HyperRailgunMinEnemies = 1;
+
+UFUNCTION(BlueprintCallable, Category="HyperDrive|Railgun")
+void NotifyHyperRailgunHit(int32 EnemiesHit, bool bWasKill);
+
+
+
 
 void ULGSHyperDriveComponent::HandleLanded(const FHitResult& Hit)
 {
@@ -151,6 +262,8 @@ void ULGSHyperDriveComponent::HandleLanded(const FHitResult& Hit)
 	TriggerLandingBurst();
 	bHasUsedLandingBurstThisHyperDrive = true;
 }
+
+
 
 void ULGSHyperDriveComponent::TriggerLandingBurst()
 {
@@ -228,4 +341,6 @@ void ULGSHyperDriveComponent::TriggerLandingBurst()
 			}
 		}
 	}
+	
 }
+
