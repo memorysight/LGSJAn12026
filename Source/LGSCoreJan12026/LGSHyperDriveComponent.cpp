@@ -91,7 +91,7 @@ void ULGSHyperDriveComponent::BeginHyperDrive()
 		}
 	}
 
-	// Stop streak window
+	//Stop streak window
 	GetWorld()->GetTimerManager().ClearTimer(Timer_KillStreakWindow);
 
 	// Start HyperDrive duration timer
