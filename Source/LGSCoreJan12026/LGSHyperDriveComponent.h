@@ -66,7 +66,7 @@ protected:
 	float KillStreakWindow = 8.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Config")
-	int32 KillsForHyperDrive = 7;
+	int32 KillsForHyperDrive = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Config")
 	float HyperDriveDuration = 10.f;
