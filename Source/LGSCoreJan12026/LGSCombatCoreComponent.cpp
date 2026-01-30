@@ -137,30 +137,38 @@ void ULGSCombatCoreComponent::DoRangedShot()
 	World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
 }
 
+
+//new 1_30 combat core swing for the fences
 void ULGSCombatCoreComponent::DoMeleeSwing()
 {
 	if (!bCanMelee) return;
-
-	UWorld* World = GetWorld();
-	if (!World) return;
-
 	bCanMelee = false;
 
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!OwnerChar)
-	{
-		ResetMelee();
-		return;
-	}
+	UWorld* World = GetWorld();
+	if (!World) { ResetMelee(); return; }
+
+	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
+	if (!OwnerChar) { ResetMelee(); return; }
 
 	if (MeleeMontage)
 	{
-		OwnerChar->PlayAnimMontage(MeleeMontage);
+		if (USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P())
+		{
+			if (UAnimInstance* AnimInst = Arms->GetAnimInstance())
+			{
+				AnimInst->Montage_Play(MeleeMontage);
+			}
+			else
+			{
+				UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] Mesh1P has no AnimInstance (AnimBP missing?)"));
+			}
+		}
 	}
 
 	World->GetTimerManager().SetTimer(
 		Timer_MeleeCooldown, this, &ULGSCombatCoreComponent::ResetMelee, MeleeCooldown, false);
 }
+//end 1_30
 
 void ULGSCombatCoreComponent::ResetFire()
 {

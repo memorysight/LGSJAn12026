@@ -80,8 +80,13 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	//end 1_3_26
 
 	
+	// RangedWeaponVisual->SetStaticMesh(nullptr);
+	// MeleeWeaponVisual->SetStaticMesh(nullptr);
+	//new 1_30 assign from data assets
 	RangedWeaponVisual->SetStaticMesh(nullptr);
 	MeleeWeaponVisual->SetStaticMesh(nullptr);
+	//1_30 end
+
 	
 	RangedWeaponVisual->SetOnlyOwnerSee(true);
 	MeleeWeaponVisual->SetOnlyOwnerSee(true);
@@ -173,18 +178,23 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 1_23_26
 
+
+
+	//new 1_30 combat core
+	
 	if (CombatCore)
 	{
-		CombatCore->OnCombatModeChanged.AddDynamic(this, &ALGSCoreJan12026Character::HandleCombatModeChanged);
+		CombatCore->OnCombatModeChanged.AddDynamic(
+			this, &ALGSCoreJan12026Character::HandleCombatModeChanged);
 
-		//test
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[BEGINPLAY] Pawn=%s Class=%s Controller=%s"),
-		*GetNameSafe(this),
-		*GetClass()->GetName(),
-		*GetNameSafe(Controller));
-		ApplyWeaponVisualsForMode(CombatCore->GetCombatMode());
-		
+		// Apply initial mode once
+		HandleCombatModeChanged(CombatCore->GetCombatMode());
 	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("[BEGINPLAY] CombatCore is NULL"));
+	}
+		//end 1_30
 
 	//1_23_26 make it extra deterministic
 	if (ShieldComp)
@@ -195,6 +205,8 @@ void ALGSCoreJan12026Character::BeginPlay()
 	//end 1_23_26
 	
 }
+
+
 //end 1_3_26
 void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -278,107 +290,128 @@ void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 	ApplyWeaponVisualsForMode(NewMode);
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] HandleCombatModeChanged fired: %s"),
 	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
+	
 }
 
-//LGS
+//LGS CombatCore VERRRRY Tricky section:  add debugs if necessary but for now, compiles 
 
 void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 {
-    if (!Mesh1P) return;
-    if (!RangedWeaponVisual && !MeleeWeaponVisual) return;
-
-    const bool bIsRanged = (NewMode == ECombatMode::Ranged);
-
-    UStaticMeshComponent* ActiveComp   = bIsRanged ? RangedWeaponVisual : MeleeWeaponVisual;
-    UStaticMeshComponent* InactiveComp = bIsRanged ? MeleeWeaponVisual : RangedWeaponVisual;
-
-    ULGSWeaponDataAsset* ActiveDA = bIsRanged ? RangedWeaponData : MeleeWeaponData;
-	//1_6_26
-	UE_LOG(LogTemplateCharacter, Warning,
-	TEXT("[VISUAL PICK] Mode=%s ActiveDA=%s DAType=%d Mesh=%s"),
-	bIsRanged ? TEXT("Ranged") : TEXT("Melee"),
-	*GetNameSafe(ActiveDA),
-	ActiveDA ? (int32)ActiveDA->WeaponType : -1,
-	ActiveDA && ActiveDA->FP_StaticMesh ? *GetNameSafe(ActiveDA->FP_StaticMesh) : TEXT("NULL")
-);
-	//end 1_6_26
-
-    // Clear + hide inactive ALWAYS
-    if (InactiveComp)
+    USkeletalMeshComponent* Arms = GetMesh1P();
+    if (!Arms)
     {
-        InactiveComp->SetStaticMesh(nullptr);
-        InactiveComp->SetRelativeTransform(FTransform::Identity);
-        InactiveComp->SetVisibility(false, true);
-        InactiveComp->SetHiddenInGame(true, true);
-    }
-
-    // If no active component, just enforce visibility consistency
-    if (!ActiveComp)
-    {
-        if (RangedWeaponVisual)
-        {
-            RangedWeaponVisual->SetVisibility(bIsRanged, true);
-            RangedWeaponVisual->SetHiddenInGame(!bIsRanged, true);
-        }
-        if (MeleeWeaponVisual)
-        {
-            MeleeWeaponVisual->SetVisibility(!bIsRanged, true);
-            MeleeWeaponVisual->SetHiddenInGame(bIsRanged, true);
-        }
+        UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Mesh1P missing"));
         return;
     }
 
-    // No DA or no mesh => empty hands
-    if (!ActiveDA || !ActiveDA->FP_StaticMesh)
+    auto ResolveSocket = [&](ULGSWeaponDataAsset* DA) -> FName
     {
-        ActiveComp->SetStaticMesh(nullptr);
-        ActiveComp->SetRelativeTransform(FTransform::Identity);
-        ActiveComp->SetVisibility(true, true);
-        ActiveComp->SetHiddenInGame(false, true);
-        return;
+        if (DA && DA->AttachSocketOverride != NAME_None)
+        {
+            return DA->AttachSocketOverride;
+        }
+        return WeaponSocketName; // WeaponSocket_R
+    };
+
+    // --- Attach and configure Ranged ---
+    if (RangedWeaponVisual && RangedWeaponData)
+    {
+        const FName Socket = ResolveSocket(RangedWeaponData);
+
+        if (!Arms->DoesSocketExist(Socket))
+        {
+            UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Missing socket %s on %s (Ranged)"),
+                *Socket.ToString(), *Arms->GetName());
+        }
+        else
+        {
+            RangedWeaponVisual->AttachToComponent(
+                Arms,
+                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+                Socket
+            );
+
+        	//guard against floating nothing, no one likes that!
+        	if (RangedWeaponData->FP_StaticMesh)
+        	{
+        		RangedWeaponVisual->SetStaticMesh(RangedWeaponData->FP_StaticMesh);
+        		RangedWeaponVisual->SetRelativeTransform(RangedWeaponData->AttachOffset);
+        	}
+        	else
+        	{
+        		UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] RangedWeaponData FP_StaticMesh is NULL (%s)"),
+					*GetNameSafe(RangedWeaponData));
+        	}
+
+
+            // Correct field name:
+            RangedWeaponVisual->SetStaticMesh(RangedWeaponData->FP_StaticMesh);
+
+            // Optional offset after snap:
+            RangedWeaponVisual->SetRelativeTransform(RangedWeaponData->AttachOffset);
+
+            // Optional rotation fix (if you still want this layer):
+            if (!RangedVisualRotationFix.IsNearlyZero())
+            {
+                RangedWeaponVisual->AddRelativeRotation(RangedVisualRotationFix);
+            }
+        }
     }
 
-    const FName SocketToUse =
-        (ActiveDA->AttachSocketOverride != NAME_None)
-            ? ActiveDA->AttachSocketOverride
-            : (bIsRanged ? RangedWeaponSocketName : MeleeWeaponSocketName);
-
-    const bool bNeedsAttach =
-        (ActiveComp->GetAttachParent() != Mesh1P) ||
-        (ActiveComp->GetAttachSocketName() != SocketToUse);
-
-    if (bNeedsAttach)
+    // --- Attach and configure Melee ---
+    if (MeleeWeaponVisual && MeleeWeaponData)
     {
-        ActiveComp->AttachToComponent(
-            Mesh1P,
-            FAttachmentTransformRules::KeepRelativeTransform,
-            SocketToUse
-        );
+        const FName Socket = ResolveSocket(MeleeWeaponData);
+
+        if (!Arms->DoesSocketExist(Socket))
+        {
+            UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Missing socket %s on %s (Melee)"),
+                *Socket.ToString(), *Arms->GetName());
+        }
+        else
+        {
+            MeleeWeaponVisual->AttachToComponent(
+                Arms,
+                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+                Socket
+            );
+
+            // Correct field name:
+            MeleeWeaponVisual->SetStaticMesh(MeleeWeaponData->FP_StaticMesh);
+
+            // Optional offset after snap:
+            MeleeWeaponVisual->SetRelativeTransform(MeleeWeaponData->AttachOffset);
+
+            // Optional rotation fix:
+            if (!MeleeVisualRotationFix.IsNearlyZero())
+            {
+                MeleeWeaponVisual->AddRelativeRotation(MeleeVisualRotationFix);
+            }
+        }
     }
 
-    ActiveComp->SetStaticMesh(ActiveDA->FP_StaticMesh);
+    // --- Show correct one ---
+    const bool bMelee = (NewMode == ECombatMode::Melee);
 
-    // Sanitize offset scale
-    FTransform SafeOffset = ActiveDA->AttachOffset;
-
-	//this is necessary because Blender was the missing link issue
-	// Optional orientation correction (Unreal-side “Blender rotate/apply”)
-	const FRotator FixRot = bIsRanged ? RangedVisualRotationFix : MeleeVisualRotationFix;
-	SafeOffset.ConcatenateRotation(FixRot.Quaternion());
-    const FVector S = SafeOffset.GetScale3D();
-    if (S.IsNearlyZero() || S.ContainsNaN())
+    if (MeleeWeaponVisual)
     {
-        SafeOffset.SetScale3D(FVector(1.f, 1.f, 1.f));
+        MeleeWeaponVisual->SetHiddenInGame(!bMelee, true);
+        MeleeWeaponVisual->SetVisibility(bMelee, true);
     }
 
-	
+    if (RangedWeaponVisual)
+    {
+        RangedWeaponVisual->SetHiddenInGame(bMelee, true);
+        RangedWeaponVisual->SetVisibility(!bMelee, true);
+    }
 
-    ActiveComp->SetRelativeTransform(SafeOffset);
-
-    ActiveComp->SetVisibility(true, true);
-    ActiveComp->SetHiddenInGame(false, true);
-	ActiveComp->SetRelativeScale3D(FVector(1.f));
+    UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] Mode=%s"),
+        bMelee ? TEXT("Melee") : TEXT("Ranged"));
 }
+
+//new combat core 1_30 socket
+const FName ALGSCoreJan12026Character::WeaponSocketName(TEXT("WeaponSocket_R"));
+//end 1_30
 
 //1_23_26
 void ALGSCoreJan12026Character::OnToggleShieldPressed()

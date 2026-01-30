@@ -115,6 +115,16 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditDefaultsOnly, Category="Weapons|Fixups")
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
+	//new combat mode 1_30
+	//seems to be already existing in code see 152 & 155
+	// UFUNCTION()
+	// void HandleCombatModeChanged(ECombatMode NewMode);
+	//
+	// void ApplyWeaponVisualsForMode(ECombatMode NewMode);
+
+	static const FName WeaponSocketName;
+	//end 1_30
+
 	//1_19_26
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Shield", meta=(AllowPrivateAccess="true"))
 	ULGSShieldComponent* ShieldComp;
@@ -178,5 +188,6 @@ public:
 	/** Returns FirstPersonCameraComponent subobject **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
+	
 };
 

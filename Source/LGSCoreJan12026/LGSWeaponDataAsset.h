@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "NiagaraSystem.h"
+#include "Engine/StaticMesh.h"
+
 #include "LGSWeaponDataAsset.generated.h"
 
 class UStaticMesh;
@@ -73,4 +75,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|FX")
 	USoundBase* FireSFX = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Visual")
+	TObjectPtr<UStaticMesh> WeaponMesh = nullptr;
+
 };
