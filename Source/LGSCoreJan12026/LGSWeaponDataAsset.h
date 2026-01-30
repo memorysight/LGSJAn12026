@@ -1,11 +1,12 @@
 #pragma once
 
+
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "NiagaraSystem.h"
 #include "Engine/StaticMesh.h"
-
 #include "LGSWeaponDataAsset.generated.h"
+
 
 class UStaticMesh;
 class UAnimMontage;

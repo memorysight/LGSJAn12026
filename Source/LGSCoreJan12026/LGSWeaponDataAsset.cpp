@@ -1,3 +1,4 @@
+#include "Engine/StaticMesh.h"
 #include "LGSWeaponDataAsset.h"
 
 // Intentionally empty for now.

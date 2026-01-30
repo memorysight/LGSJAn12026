@@ -2,6 +2,8 @@
 
 using UnrealBuildTool;
 
+
+//1_30 update changes
 public class LGSCoreJan12026 : ModuleRules
 {
 	public LGSCoreJan12026(ReadOnlyTargetRules Target) : base(Target)
