@@ -72,6 +72,7 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	//might be set to melee in the editor and throwing off assignment when toggling
 	UPROPERTY(EditAnywhere, Category="Combat|Mode")
 	ECombatMode CombatMode = ECombatMode::Ranged;
 

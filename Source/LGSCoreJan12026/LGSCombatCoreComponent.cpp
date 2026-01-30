@@ -11,42 +11,41 @@ ULGSCombatCoreComponent::ULGSCombatCoreComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+//new 1_30 assess switch state mixup
 void ULGSCombatCoreComponent::BeginPlay()
 {
-	
 	Super::BeginPlay();
+
+	UE_LOG(LogTemplateCharacter, Warning,
+		TEXT("[MODE] CombatCore BeginPlay pre-broadcast = %s (Owner=%s, Comp=%s)"),
+		CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
+		GetOwner() ? *GetOwner()->GetName() : TEXT("None"),
+		*GetName());
+
 	OnCombatModeChanged.Broadcast(CombatMode);
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] CombatCore BeginPlay initial = %s (Owner=%s, Comp=%s)"),
-	CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
-	*GetOwner()->GetName(),
-	*GetName());
-	
+	UE_LOG(LogTemplateCharacter, Warning,
+		TEXT("[MODE] CombatCore BeginPlay post-broadcast = %s"),
+		CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
 }
+//end 1_30
 
+
+//new 1_30 
 void ULGSCombatCoreComponent::ToggleCombatMode()
 {
-	//ok
+	const ECombatMode Current = CombatMode;
+	const ECombatMode Next = (CombatMode == ECombatMode::Ranged) ? ECombatMode::Melee : ECombatMode::Ranged;
 
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			2.0f,
-			FColor::Green,
-			FString::Printf(
-				TEXT("ToggleCombatMode pressed. Current=%s"),
-				CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee")
-			)
-		);
-	}
+	auto ToStr = [](ECombatMode M){ return (M == ECombatMode::Ranged) ? TEXT("Ranged") : TEXT("Melee"); };
 
-	SetCombatMode(CombatMode == ECombatMode::Ranged ? ECombatMode::Melee : ECombatMode::Ranged);
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+		FString::Printf(TEXT("Toggle: %s -> %s"), ToStr(Current), ToStr(Next)));
 
-	
-
-
+	SetCombatMode(Next);
 }
+//end 1_30
+
 
 void ULGSCombatCoreComponent::SetCombatMode(ECombatMode NewMode)
 {
