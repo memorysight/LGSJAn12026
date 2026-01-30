@@ -13,8 +13,14 @@ ULGSCombatCoreComponent::ULGSCombatCoreComponent()
 
 void ULGSCombatCoreComponent::BeginPlay()
 {
-	OnCombatModeChanged.Broadcast(CombatMode);
+	
 	Super::BeginPlay();
+	OnCombatModeChanged.Broadcast(CombatMode);
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] CombatCore BeginPlay initial = %s (Owner=%s, Comp=%s)"),
+	CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
+	*GetOwner()->GetName(),
+	*GetName());
 	
 }
 
