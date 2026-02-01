@@ -1,5 +1,4 @@
 #include "LGSCombatCoreComponent.h"
-#include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
@@ -138,7 +137,7 @@ void ULGSCombatCoreComponent::DoRangedShot()
 }
 
 
-//new 1_30 combat core swing for the fences
+//1_30 combat core swing for the fences
 void ULGSCombatCoreComponent::DoMeleeSwing()
 {
 	if (!bCanMelee) return;
@@ -169,6 +168,15 @@ void ULGSCombatCoreComponent::DoMeleeSwing()
 		Timer_MeleeCooldown, this, &ULGSCombatCoreComponent::ResetMelee, MeleeCooldown, false);
 }
 //end 1_30
+
+//new 2_1
+void ULGSCombatCoreComponent::BeginMeleeDamage()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[MELEE] BeginMeleeDamage called"));
+}
+
+//end 2_1
+
 
 void ULGSCombatCoreComponent::ResetFire()
 {

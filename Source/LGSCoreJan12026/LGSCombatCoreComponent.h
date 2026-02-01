@@ -2,13 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-//new 1_3_26
+//1_3_26
 #include "Templates/SubclassOf.h"
 #include "TimerManager.h"
 //end 1_3_26
 #include "LGSCombatCoreComponent.generated.h"
 
-//new 1_3_26
+//1_3_26
 class UAnimMontage;
 class AActor; // optional (TSubclassOf generally fine, but harmless)
 //end 1_3_26
@@ -67,6 +67,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Melee")
 	float MeleeCooldown = 0.35f;
+
+	//new 2_1 BeginMeleeDamage
+	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
+	void BeginMeleeDamage();
+	//end 2_1
 
 protected:
 	virtual void BeginPlay() override;
