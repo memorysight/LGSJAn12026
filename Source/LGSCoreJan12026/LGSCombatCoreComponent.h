@@ -79,6 +79,7 @@ public:
 	//end 2_2
 
 
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -98,4 +99,44 @@ private:
 
 	void ResetFire();
 	void ResetMelee();
+
+	//new 2_2 TraceWindow
+	// Damage window state
+	bool bMeleeDamageActive = false;
+
+	// Prevent hitting same actor multiple times in one swing
+	TSet<TWeakObjectPtr<AActor>> HitActorsThisSwing;
+
+	// Melee trace tuning
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	float MeleeTraceDistance = 200.f;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	float MeleeTraceRadius = 35.f;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	float MeleeDamage = 25.f;
+
+	// UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	// TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Pawn;
+	
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Visibility;
+
+
+	// UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	// bool bDrawMeleeDebug = false;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	bool bDrawMeleeDebug = true;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	FName MeleeTraceSocketName = TEXT("WeaponSocket_R"); // or "hand_r"
+
+	FTimerHandle Timer_MeleeTrace;
+
+	void PerformMeleeTrace();
+	void StartMeleeTraceLoop();
+	void StopMeleeTraceLoop();
+	//end 2_2
 };
