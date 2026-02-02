@@ -4,6 +4,7 @@
 #include "DrawDebugHelpers.h"
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/Pawn.h"
 #include "Camera/CameraComponent.h"
 #include "LGSCoreJan12026Character.h"
 
@@ -64,6 +65,7 @@ void ULGSCombatCoreComponent::SetCombatMode(ECombatMode NewMode)
 }
 
 
+//don't duplicate
 void ULGSCombatCoreComponent::TryPrimary()
 {
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] TryPrimary Mode=%s CanMelee=%d CanFire=%d"),
@@ -72,18 +74,8 @@ void ULGSCombatCoreComponent::TryPrimary()
 
 	if (CombatMode == ECombatMode::Ranged) DoRangedShot();
 	else DoMeleeSwing();
-	
-	if (CombatMode == ECombatMode::Ranged)
-	{
-		DoRangedShot();
-	}
-	else
-	{
-		DoMeleeSwing();
-	}
-
-	
 }
+//_2_1
 
 void ULGSCombatCoreComponent::TrySecondary()
 {
@@ -236,46 +228,46 @@ void ULGSCombatCoreComponent::StopMeleeTraceLoop()
 	}
 }
 
+//very experimental add
 void ULGSCombatCoreComponent::PerformMeleeTrace()
 {
-	UE_LOG(LogTemplateCharacter, VeryVerbose, TEXT("[MELEE] PerformMeleeTrace tick (Active=%d)"), bMeleeDamageActive);
-	
-	// if (!Arms->DoesSocketExist(MeleeTraceSocketName))
-	// {
-	// 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] Socket missing: %s on %s"),
-	// 		*MeleeTraceSocketName.ToString(), *GetNameSafe(Arms));
-	// }
-
 	if (!bMeleeDamageActive) return;
 
 	UWorld* World = GetWorld();
 	if (!World) return;
 
-	ALGSCoreJan12026Character* OwnerChar =
-		Cast<ALGSCoreJan12026Character>(GetOwner());
+	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
 	if (!OwnerChar) return;
 
 	USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P();
 	if (!Arms) return;
 
-	FVector Start = Arms->DoesSocketExist(MeleeTraceSocketName)
-		? Arms->GetSocketLocation(MeleeTraceSocketName)
-		: Arms->GetComponentLocation();
+	// --- Start position from socket (or fallback) ---
+	const bool bHasSocket = Arms->DoesSocketExist(MeleeTraceSocketName);
+	const FVector Start = bHasSocket ? Arms->GetSocketLocation(MeleeTraceSocketName)
+									 : Arms->GetComponentLocation();
 
+	// --- Aim direction (camera forward preferred) ---
 	FVector Dir = OwnerChar->GetActorForwardVector();
 	if (UCameraComponent* Cam = OwnerChar->GetFirstPersonCameraComponent())
 	{
 		Dir = Cam->GetForwardVector();
 	}
+	Dir = Dir.GetSafeNormal();
 
-	FVector End = Start + (Dir * MeleeTraceDistance);
+	const FVector End = Start + (Dir * MeleeTraceDistance);
 
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(MeleeTrace), false);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MeleeTrace), /*bTraceComplex*/ false);
 	Params.AddIgnoredActor(OwnerChar);
 
-	FHitResult Hit;
-	bool bHit = World->SweepSingleByChannel(
-		Hit,
+	// Helpful while debugging:
+	// Params.bReturnPhysicalMaterial = true;
+
+	TArray<FHitResult> Hits;
+
+	// SweepMulti so we can see *everything* we touch (capsule/mesh/etc)
+	const bool bAnyHit = World->SweepMultiByChannel(
+		Hits,
 		Start,
 		End,
 		FQuat::Identity,
@@ -284,41 +276,100 @@ void ULGSCombatCoreComponent::PerformMeleeTrace()
 		Params
 	);
 
+	// --- Debug draw ---
 	if (bDrawMeleeDebug)
 	{
-		FColor Color = bHit ? FColor::Red : FColor::Green;
-		DrawDebugLine(World, Start, End, Color, false, 0.02f, 0, 1.5f);
-		DrawDebugSphere(World, End, MeleeTraceRadius, 12, Color, false, 0.02f);
+		const FColor Color = bAnyHit ? FColor::Red : FColor::Green;
+
+		DrawDebugLine(World, Start, End, Color, false, 0.03f, 0, 2.0f);
+		DrawDebugSphere(World, Start, MeleeTraceRadius, 12, Color, false, 0.03f);
+		DrawDebugSphere(World, End,   MeleeTraceRadius, 12, Color, false, 0.03f);
+
+		if (!bHasSocket)
+		{
+			DrawDebugString(World, Start, TEXT("Socket missing!"), nullptr, FColor::Yellow, 0.03f, false);
+		}
 	}
 
-	if (!bHit || !Hit.GetActor()) return;
+	if (!bAnyHit || Hits.Num() == 0)
+	{
+		// Uncomment for spammy debugging:
+		// UE_LOG(LogTemplateCharacter, VeryVerbose, TEXT("[MELEE] No hits"));
+		return;
+	}
 
-	if (HitActorsThisSwing.Contains(Hit.GetActor())) return;
-	HitActorsThisSwing.Add(Hit.GetActor());
+	// Sort by distance so closest hit processes first (optional but nice)
+	Hits.Sort([](const FHitResult& A, const FHitResult& B)
+	{
+		return A.Distance < B.Distance;
+	});
 
-	UGameplayStatics::ApplyPointDamage(
-		Hit.GetActor(),
-		MeleeDamage,
-		Dir,
-		Hit,
-		OwnerChar->GetController(),
-		OwnerChar,
-		nullptr
-	);
-
+	// Optional: one-time per tick log to see what we’re hitting
 	UE_LOG(LogTemplateCharacter, Warning,
-		TEXT("[MELEE] Hit %s for %.1f"),
-		*GetNameSafe(Hit.GetActor()),
-		MeleeDamage);
-}
+		TEXT("[MELEE] SweepMulti hit count=%d (Channel=%d)"),
+		Hits.Num(), (int32)MeleeTraceChannel);
 
+	for (const FHitResult& H : Hits)
+	{
+		AActor* HitActor = H.GetActor();
+		UPrimitiveComponent* HitComp = H.GetComponent();
+
+		if (!HitActor || HitActor == OwnerChar) continue;
+
+		// Log what we hit (this is the big “Countess mystery” resolver)
+		UE_LOG(LogTemplateCharacter, Warning,
+			TEXT("    -> %s | Comp=%s | Block=%d | Dist=%.1f"),
+			*GetNameSafe(HitActor),
+			*GetNameSafe(HitComp),
+			H.bBlockingHit ? 1 : 0,
+			H.Distance);
+
+		// If you ONLY want to damage characters/pawns, enable this filter:
+		// (Turrets likely aren’t pawns; so only enable if desired)
+		// if (!HitActor->IsA<APawn>() && !HitActor->IsA<ACharacter>()) continue;
+
+		// Prevent hitting same actor twice in one swing
+		if (HitActorsThisSwing.Contains(HitActor)) continue;
+		HitActorsThisSwing.Add(HitActor);
+
+		// IMPORTANT:
+		// Some collision setups produce non-blocking overlaps.
+		// SweepMulti returns both; ApplyDamage works either way.
+		const FVector UseDir = Dir;
+
+		// Option A: PointDamage (keeps your existing approach)
+		UGameplayStatics::ApplyPointDamage(
+			HitActor,
+			MeleeDamage,
+			UseDir,
+			H,
+			OwnerChar->GetController(),
+			OwnerChar,
+			nullptr
+		);
+
+		// Option B: Plain ApplyDamage (uncomment to test if Countess only listens to AnyDamage)
+		/*
+		UGameplayStatics::ApplyDamage(
+			HitActor,
+			MeleeDamage,
+			OwnerChar->GetController(),
+			OwnerChar,
+			nullptr
+		);
+		*/
+
+		UE_LOG(LogTemplateCharacter, Warning,
+			TEXT("[MELEE] Applied %.1f damage to %s"),
+			MeleeDamage, *GetNameSafe(HitActor));
+
+		// If you only want ONE target per swing tick, break here:
+		// break;
+	}
+}
 //testing
 
-
-
-
 //end 2_2
-
 
 void ULGSCombatCoreComponent::ResetFire()
 {
