@@ -137,7 +137,7 @@ void ULGSCombatCoreComponent::DoRangedShot()
 }
 
 
-//1_30 combat core swing for the fences
+//1_30 combat core swing for the fences___TEST PHASE
 void ULGSCombatCoreComponent::DoMeleeSwing()
 {
 	if (!bCanMelee) return;
