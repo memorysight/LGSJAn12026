@@ -98,7 +98,11 @@ public:
 	float MeleeDamage = 25.f;
 
 	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
-	TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Visibility;
+	TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Pawn;
+	
+	//not correct
+	// UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	// TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Visibility;
 
 	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
 	bool bDrawMeleeDebug = true;

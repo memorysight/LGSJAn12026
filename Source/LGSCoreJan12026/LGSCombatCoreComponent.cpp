@@ -1,6 +1,7 @@
 #include "LGSCombatCoreComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "DrawDebugHelpers.h"
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/CameraComponent.h"
@@ -65,6 +66,13 @@ void ULGSCombatCoreComponent::SetCombatMode(ECombatMode NewMode)
 
 void ULGSCombatCoreComponent::TryPrimary()
 {
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] TryPrimary Mode=%s CanMelee=%d CanFire=%d"),
+		CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
+		bCanMelee, bCanFire);
+
+	if (CombatMode == ECombatMode::Ranged) DoRangedShot();
+	else DoMeleeSwing();
+	
 	if (CombatMode == ECombatMode::Ranged)
 	{
 		DoRangedShot();
@@ -73,6 +81,8 @@ void ULGSCombatCoreComponent::TryPrimary()
 	{
 		DoMeleeSwing();
 	}
+
+	
 }
 
 void ULGSCombatCoreComponent::TrySecondary()
@@ -141,6 +151,9 @@ void ULGSCombatCoreComponent::DoRangedShot()
 //1_30 combat core swing for the fences___TEST PHASE
 void ULGSCombatCoreComponent::DoMeleeSwing()
 {
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] DoMeleeSwing fired (CanMelee=%d Montage=%s)"),
+		bCanMelee, *GetNameSafe(MeleeMontage));
+	
 	if (!bCanMelee) return;
 	bCanMelee = false;
 
@@ -149,6 +162,15 @@ void ULGSCombatCoreComponent::DoMeleeSwing()
 
 	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
 	if (!OwnerChar) { ResetMelee(); return; }
+
+	//possible answer to issue not tested: not built_2_2
+	// BeginMeleeDamage();
+	// World->GetTimerManager().SetTimerForNextTick([this]()
+	// {
+	// 	// or use a short timer like 0.15-0.25s to emulate a damage window
+	// });
+	// World->GetTimerManager().SetTimer(Timer_MeleeTrace, this, &ULGSCombatCoreComponent::EndMeleeDamage, 0.2f, false);
+
 
 	if (MeleeMontage)
 	{
@@ -216,6 +238,14 @@ void ULGSCombatCoreComponent::StopMeleeTraceLoop()
 
 void ULGSCombatCoreComponent::PerformMeleeTrace()
 {
+	UE_LOG(LogTemplateCharacter, VeryVerbose, TEXT("[MELEE] PerformMeleeTrace tick (Active=%d)"), bMeleeDamageActive);
+	
+	// if (!Arms->DoesSocketExist(MeleeTraceSocketName))
+	// {
+	// 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] Socket missing: %s on %s"),
+	// 		*MeleeTraceSocketName.ToString(), *GetNameSafe(Arms));
+	// }
+
 	if (!bMeleeDamageActive) return;
 
 	UWorld* World = GetWorld();
@@ -281,6 +311,11 @@ void ULGSCombatCoreComponent::PerformMeleeTrace()
 		*GetNameSafe(Hit.GetActor()),
 		MeleeDamage);
 }
+
+//testing
+
+
+
 
 //end 2_2
 
