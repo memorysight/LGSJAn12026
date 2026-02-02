@@ -73,7 +73,7 @@ public:
 	void BeginMeleeDamage();
 	//end 2_1
 
-	//new 2_2 EndMeleeDamage
+	//new 2_2 EndMeleeDamage___TestFunnyhappyTimes!!
 	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
 	void EndMeleeDamage();
 	//end 2_2
