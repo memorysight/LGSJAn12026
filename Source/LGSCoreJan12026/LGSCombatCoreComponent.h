@@ -68,10 +68,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Melee")
 	float MeleeCooldown = 0.35f;
 
-	//new 2_1 BeginMeleeDamage
+	//2_1 BeginMeleeDamage
 	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
 	void BeginMeleeDamage();
 	//end 2_1
+
+	//new 2_2 EndMeleeDamage
+	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
+	void EndMeleeDamage();
+	//end 2_2
+
 
 protected:
 	virtual void BeginPlay() override;

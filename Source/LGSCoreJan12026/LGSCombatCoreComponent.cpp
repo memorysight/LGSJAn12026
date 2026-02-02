@@ -169,13 +169,20 @@ void ULGSCombatCoreComponent::DoMeleeSwing()
 }
 //end 1_30
 
-//new 2_1
+//2_1
 void ULGSCombatCoreComponent::BeginMeleeDamage()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[MELEE] BeginMeleeDamage called"));
 }
 
 //end 2_1
+
+//new 2_2
+void ULGSCombatCoreComponent::EndMeleeDamage()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[MELEE] EndMeleeDamage called"));
+}
+//end 2_2
 
 
 void ULGSCombatCoreComponent::ResetFire()
