@@ -76,7 +76,38 @@ public:
 	//new 2_2 EndMeleeDamage___TestFunnyhappyTimes!!
 	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
 	void EndMeleeDamage();
+
+	// --- Trace internals ---
+	void StartMeleeTraceLoop();
+	void StopMeleeTraceLoop();
+	void PerformMeleeTrace();
+
+	bool bMeleeDamageActive = false;
+
+	TSet<TWeakObjectPtr<AActor>> HitActorsThisSwing;
+
+	FTimerHandle Timer_MeleeTrace;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	float MeleeTraceDistance = 200.f;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	float MeleeTraceRadius = 35.f;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	float MeleeDamage = 25.f;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Visibility;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	bool bDrawMeleeDebug = true;
+
+	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
+	FName MeleeTraceSocketName = TEXT("WeaponSocket_R");
+	
 	//end 2_2
+	
 
 
 protected:

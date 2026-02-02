@@ -2,6 +2,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "Camera/CameraComponent.h"
 #include "LGSCoreJan12026Character.h"
 
@@ -76,7 +77,7 @@ void ULGSCombatCoreComponent::TryPrimary()
 
 void ULGSCombatCoreComponent::TrySecondary()
 {
-	// Reserved for Aim / Block / AltFire later.
+	// Reserved for Aim / Block / AltFire later   .
 }
 
 void ULGSCombatCoreComponent::DoRangedShot()
@@ -172,16 +173,115 @@ void ULGSCombatCoreComponent::DoMeleeSwing()
 //2_1
 void ULGSCombatCoreComponent::BeginMeleeDamage()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[MELEE] BeginMeleeDamage called"));
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] BeginMeleeDamage"));
+
+	bMeleeDamageActive = true;
+	HitActorsThisSwing.Reset();
+
+	StartMeleeTraceLoop();
 }
 
-//end 2_1
-
-//new 2_2
 void ULGSCombatCoreComponent::EndMeleeDamage()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[MELEE] EndMeleeDamage called"));
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] EndMeleeDamage"));
+
+	bMeleeDamageActive = false;
+
+	StopMeleeTraceLoop();
+	HitActorsThisSwing.Reset();
 }
+
+void ULGSCombatCoreComponent::StartMeleeTraceLoop()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(Timer_MeleeTrace);
+		World->GetTimerManager().SetTimer(
+			Timer_MeleeTrace,
+			this,
+			&ULGSCombatCoreComponent::PerformMeleeTrace,
+			0.016f,   // ~60 FPS
+			true
+		);
+	}
+}
+
+void ULGSCombatCoreComponent::StopMeleeTraceLoop()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(Timer_MeleeTrace);
+	}
+}
+
+void ULGSCombatCoreComponent::PerformMeleeTrace()
+{
+	if (!bMeleeDamageActive) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	ALGSCoreJan12026Character* OwnerChar =
+		Cast<ALGSCoreJan12026Character>(GetOwner());
+	if (!OwnerChar) return;
+
+	USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P();
+	if (!Arms) return;
+
+	FVector Start = Arms->DoesSocketExist(MeleeTraceSocketName)
+		? Arms->GetSocketLocation(MeleeTraceSocketName)
+		: Arms->GetComponentLocation();
+
+	FVector Dir = OwnerChar->GetActorForwardVector();
+	if (UCameraComponent* Cam = OwnerChar->GetFirstPersonCameraComponent())
+	{
+		Dir = Cam->GetForwardVector();
+	}
+
+	FVector End = Start + (Dir * MeleeTraceDistance);
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MeleeTrace), false);
+	Params.AddIgnoredActor(OwnerChar);
+
+	FHitResult Hit;
+	bool bHit = World->SweepSingleByChannel(
+		Hit,
+		Start,
+		End,
+		FQuat::Identity,
+		MeleeTraceChannel,
+		FCollisionShape::MakeSphere(MeleeTraceRadius),
+		Params
+	);
+
+	if (bDrawMeleeDebug)
+	{
+		FColor Color = bHit ? FColor::Red : FColor::Green;
+		DrawDebugLine(World, Start, End, Color, false, 0.02f, 0, 1.5f);
+		DrawDebugSphere(World, End, MeleeTraceRadius, 12, Color, false, 0.02f);
+	}
+
+	if (!bHit || !Hit.GetActor()) return;
+
+	if (HitActorsThisSwing.Contains(Hit.GetActor())) return;
+	HitActorsThisSwing.Add(Hit.GetActor());
+
+	UGameplayStatics::ApplyPointDamage(
+		Hit.GetActor(),
+		MeleeDamage,
+		Dir,
+		Hit,
+		OwnerChar->GetController(),
+		OwnerChar,
+		nullptr
+	);
+
+	UE_LOG(LogTemplateCharacter, Warning,
+		TEXT("[MELEE] Hit %s for %.1f"),
+		*GetNameSafe(Hit.GetActor()),
+		MeleeDamage);
+}
+
 //end 2_2
 
 
