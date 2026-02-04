@@ -110,7 +110,7 @@ public:
 	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
 	FName MeleeTraceSocketName = TEXT("WeaponSocket_R");
 	
-	//end 2_2
+	//end 2_2__TESet2_3   
 	
 
 
