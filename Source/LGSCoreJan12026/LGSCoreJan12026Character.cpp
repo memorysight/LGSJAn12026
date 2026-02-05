@@ -294,13 +294,13 @@ void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 }
 
 //LGS CombatCore VERRRRY Tricky section:  add debugs if necessary but for now, compiles 
-
+//2_53pto1p
 void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 {
     USkeletalMeshComponent* Arms = GetMesh1P();
     if (!Arms)
     {
-        UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Mesh1P missing"));
+        UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Mesh1P missing - cannot attach 1P visuals"));
         return;
     }
 
@@ -313,84 +313,46 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
         return WeaponSocketName; // WeaponSocket_R
     };
 
-    // --- Attach and configure Ranged ---
-    if (RangedWeaponVisual && RangedWeaponData)
+    auto AttachAndApply = [&](UStaticMeshComponent* Visual, ULGSWeaponDataAsset* DA, const TCHAR* Label)
     {
-        const FName Socket = ResolveSocket(RangedWeaponData);
+        if (!Visual)
+        {
+            UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] %s visual is NULL"), Label);
+            return;
+        }
 
+        if (!DA)
+        {
+            UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] %s DataAsset is NULL"), Label);
+            Visual->SetStaticMesh(nullptr);
+            return;
+        }
+
+        const FName Socket = ResolveSocket(DA);
         if (!Arms->DoesSocketExist(Socket))
         {
-            UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Missing socket %s on %s (Ranged)"),
-                *Socket.ToString(), *Arms->GetName());
+            UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] %s socket missing: %s on %s"),
+                Label, *Socket.ToString(), *GetNameSafe(Arms));
+            return;
         }
-        else
-        {
-            RangedWeaponVisual->AttachToComponent(
-                Arms,
-                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-                Socket
-            );
 
-        	//guard against floating nothing, no one likes that!
-        	if (RangedWeaponData->FP_StaticMesh)
-        	{
-        		RangedWeaponVisual->SetStaticMesh(RangedWeaponData->FP_StaticMesh);
-        		RangedWeaponVisual->SetRelativeTransform(RangedWeaponData->AttachOffset);
-        	}
-        	else
-        	{
-        		UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] RangedWeaponData FP_StaticMesh is NULL (%s)"),
-					*GetNameSafe(RangedWeaponData));
-        	}
+        Visual->AttachToComponent(Arms, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 
+        Visual->SetStaticMesh(DA->FP_StaticMesh);
+        Visual->SetRelativeTransform(DA->AttachOffset);
 
-            // Correct field name:
-            RangedWeaponVisual->SetStaticMesh(RangedWeaponData->FP_StaticMesh);
+        UE_LOG(LogTemplateCharacter, Warning,
+            TEXT("[WEAPON] %s attached to Mesh=%s Socket=%s MeshAsset=%s Hidden=%d"),
+            Label,
+            *GetNameSafe(Arms),
+            *Socket.ToString(),
+            *GetNameSafe(DA->FP_StaticMesh),
+            Visual->bHiddenInGame ? 1 : 0);
+    };
 
-            // Optional offset after snap:
-            RangedWeaponVisual->SetRelativeTransform(RangedWeaponData->AttachOffset);
+    AttachAndApply(RangedWeaponVisual, RangedWeaponData, TEXT("Ranged"));
+    AttachAndApply(MeleeWeaponVisual,  MeleeWeaponData,  TEXT("Melee"));
 
-            // Optional rotation fix (if you still want this layer):
-            if (!RangedVisualRotationFix.IsNearlyZero())
-            {
-                RangedWeaponVisual->AddRelativeRotation(RangedVisualRotationFix);
-            }
-        }
-    }
-
-    // --- Attach and configure Melee ---
-    if (MeleeWeaponVisual && MeleeWeaponData)
-    {
-        const FName Socket = ResolveSocket(MeleeWeaponData);
-
-        if (!Arms->DoesSocketExist(Socket))
-        {
-            UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Missing socket %s on %s (Melee)"),
-                *Socket.ToString(), *Arms->GetName());
-        }
-        else
-        {
-            MeleeWeaponVisual->AttachToComponent(
-                Arms,
-                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-                Socket
-            );
-
-            // Correct field name:
-            MeleeWeaponVisual->SetStaticMesh(MeleeWeaponData->FP_StaticMesh);
-
-            // Optional offset after snap:
-            MeleeWeaponVisual->SetRelativeTransform(MeleeWeaponData->AttachOffset);
-
-            // Optional rotation fix:
-            if (!MeleeVisualRotationFix.IsNearlyZero())
-            {
-                MeleeWeaponVisual->AddRelativeRotation(MeleeVisualRotationFix);
-            }
-        }
-    }
-
-    // --- Show correct one ---
     const bool bMelee = (NewMode == ECombatMode::Melee);
 
     if (MeleeWeaponVisual)
@@ -398,16 +360,13 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
         MeleeWeaponVisual->SetHiddenInGame(!bMelee, true);
         MeleeWeaponVisual->SetVisibility(bMelee, true);
     }
-
     if (RangedWeaponVisual)
     {
         RangedWeaponVisual->SetHiddenInGame(bMelee, true);
         RangedWeaponVisual->SetVisibility(!bMelee, true);
     }
-
-    UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] Mode=%s"),
-        bMelee ? TEXT("Melee") : TEXT("Ranged"));
 }
+
 
 //new combat core 1_30 socket
 const FName ALGSCoreJan12026Character::WeaponSocketName(TEXT("WeaponSocket_R"));
