@@ -293,7 +293,7 @@ void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 	
 }
 
-//LGS CombatCore VERRRRY Tricky section:  add debugs if necessary but for now, compiles 
+//LGS CombatCore VERRY Tricky section: add debugs if necessary but for now, compiles 
 //2_53pto1p
 void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 {
