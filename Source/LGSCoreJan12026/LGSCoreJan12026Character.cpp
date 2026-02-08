@@ -328,6 +328,17 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
             return;
         }
 
+    	if (GEngine)
+    	{
+    		GEngine->AddOnScreenDebugMessage(
+				-1, 4.f, FColor::Yellow,
+				FString::Printf(TEXT("MELEE DA=%s  Mesh=%s"),
+					*GetNameSafe(MeleeWeaponData),
+					*GetNameSafe(MeleeWeaponData ? MeleeWeaponData->FP_StaticMesh : nullptr))
+			);
+    	}
+
+
         const FName Socket = ResolveSocket(DA);
         if (!Arms->DoesSocketExist(Socket))
         {
