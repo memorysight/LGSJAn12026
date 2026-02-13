@@ -111,7 +111,7 @@ public:
 	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
 	TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Pawn;
 	
-	//not correct
+	//verify
 	// UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
 	// TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Visibility;
 
