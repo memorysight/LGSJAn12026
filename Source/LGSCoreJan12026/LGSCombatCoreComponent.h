@@ -61,6 +61,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged")
 	float FireCooldown = 0.10f;
 
+	//2_12
+	UFUNCTION(BlueprintPure, Category="Combat")
+	bool IsRangedMode() const { return CombatMode == ECombatMode::Ranged; }
+	//end 2_12
+
+	//new 2_12 rifleAnim
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UAnimMontage> FP_Rifle_Shoot_Montage = nullptr;
+
+	//end 2_12
+
 	// --- Melee config ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Melee")
 	UAnimMontage* MeleeMontage = nullptr;
@@ -73,7 +84,7 @@ public:
 	void BeginMeleeDamage();
 	//end 2_1
 
-	//new 2_2 EndMeleeDamage___TestFunnyhappyTimes!!
+	//new 2_2 EndMeleeDamage___Test!!
 	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
 	void EndMeleeDamage();
 

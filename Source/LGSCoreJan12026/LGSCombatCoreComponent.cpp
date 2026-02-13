@@ -5,6 +5,10 @@
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Pawn.h"
+//new 2_12
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
+//end 2_12
 #include "Camera/CameraComponent.h"
 #include "LGSCoreJan12026Character.h"
 
@@ -79,7 +83,7 @@ void ULGSCombatCoreComponent::TryPrimary()
 
 void ULGSCombatCoreComponent::TrySecondary()
 {
-	// Reserved for Aim / Block / AltFire later   .
+	// Reserved for Aim / Block / AltFire later .
 }
 
 void ULGSCombatCoreComponent::DoRangedShot()
@@ -93,13 +97,41 @@ void ULGSCombatCoreComponent::DoRangedShot()
 	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
 	if (!OwnerChar) { ResetFire(); return; }
 
+	//new 2_12 rifleAnimation
+	// ✅ Play rifle fire montage (visual)
+	// --- Ranged fire montage (first-person arms) ---
+	if (FP_Rifle_Shoot_Montage)
+	{
+		if (USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P())
+		{
+			if (UAnimInstance* AnimInst = Arms->GetAnimInstance())
+			{
+				// Optional: don't restart if already playing
+				if (!AnimInst->Montage_IsPlaying(FP_Rifle_Shoot_Montage))
+				{
+					AnimInst->Montage_Play(FP_Rifle_Shoot_Montage, 1.0f);
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] Mesh1P has no AnimInstance"));
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] FP_Rifle_Shoot_Montage is NULL"));
+	}
+
+	//end 2_12
+
 	if (!BulletClass)
 	{
 		World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
 		return;
 	}
-	//change to make rider build again to fix desync issue
-	//new 1_3_26
+	
+	//1_3_26
 	// Prefer muzzle socket location, but aim with camera rotation for FPS feel.
 	// Always initialize to something valid.
 	FTransform SpawnXform = OwnerChar->GetActorTransform();
