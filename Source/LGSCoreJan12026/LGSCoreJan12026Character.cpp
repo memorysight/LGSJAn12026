@@ -160,11 +160,14 @@ void ALGSCoreJan12026Character::BeginPlay()
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
 			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
 		{
+			
+			
 			if (DefaultMappingContext)
 			{
 				Subsystem->ClearAllMappings();
 				Subsystem->AddMappingContext(DefaultMappingContext, 0);
 				UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] Mapping context applied in BeginPlay"));
+				
 			}
 			else
 			{
@@ -215,14 +218,40 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Move);EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Look);
 
-		// Combat bindings
+		// Combat bindings autofire
+		//2_18
 		if (CombatCore && ShootAction)
 		{
+			
 			EnhancedInputComponent->BindAction(
-				ShootAction, ETriggerEvent::Started,
-				CombatCore, &ULGSCombatCoreComponent::TryPrimary
+			ShootAction,
+			ETriggerEvent::Triggered,
+			CombatCore,
+			&ULGSCombatCoreComponent::StartAutoFire
+);
+
+			EnhancedInputComponent->BindAction(
+				ShootAction,
+				ETriggerEvent::Completed,
+				CombatCore,
+				&ULGSCombatCoreComponent::StopAutoFire
 			);
+
+			EnhancedInputComponent->BindAction(
+				ShootAction,
+				ETriggerEvent::Canceled,
+				CombatCore,
+				&ULGSCombatCoreComponent::StopAutoFire
+			);
+
+			UE_LOG(LogTemplateCharacter, Warning,
+			TEXT("[INPUT] Bound ShootAction=%s to CombatCore=%s"),
+			*GetNameSafe(ShootAction),
+			*GetNameSafe(CombatCore));
+
+			
 		}
+		//end2_18
 
 		if (CombatCore && ToggleCombatModeAction)
 		{

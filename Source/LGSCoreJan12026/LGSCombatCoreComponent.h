@@ -69,8 +69,15 @@ public:
 	//new 2_12 rifleAnim
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UAnimMontage> FP_Rifle_Shoot_Montage = nullptr;
-
 	//end 2_12
+
+	//new 2_28 autofire
+	UFUNCTION(BlueprintCallable, Category="Combat|Input")
+	void StartAutoFire();
+
+	UFUNCTION(BlueprintCallable, Category="Combat|Input")
+	void StopAutoFire();
+	//end 2_18
 
 	// --- Melee config ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Melee")
@@ -144,4 +151,15 @@ private:
 
 	void ResetFire();
 	void ResetMelee();
+
+	//new 2_28
+	bool bIsAutoFiring = false;
+	FTimerHandle Timer_AutoFire;
+
+	UFUNCTION()
+	void AutoFireTick();
+
+	UPROPERTY(EditAnywhere, Category="Combat|Ranged")
+	bool bIsFullAuto = true;          // if false, still single-shot
+	//end 2_18
 };

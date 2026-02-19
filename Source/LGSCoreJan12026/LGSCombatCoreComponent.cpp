@@ -171,6 +171,90 @@ void ULGSCombatCoreComponent::DoRangedShot()
 	World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
 }
 
+//new 2_18 autofire
+void ULGSCombatCoreComponent::StartAutoFire()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AUTO] StartAutoFire FullAuto=%d Mode=%s bIsAutoFiring=%d"),
+		bIsFullAuto ? 1 : 0,
+		CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
+		bIsAutoFiring ? 1 : 0);
+
+	if (!bIsFullAuto)
+	{
+		TryPrimary();
+		return;
+	}
+
+	if (bIsAutoFiring) return;
+	bIsAutoFiring = true;
+
+	TryPrimary();
+
+	const float Interval = FMath::Max(0.01f, FireCooldown);
+
+	World->GetTimerManager().SetTimer(
+		Timer_AutoFire,
+		this,
+		&ULGSCombatCoreComponent::AutoFireTick,
+		Interval,
+		true
+	);
+
+	const bool bActive = World->GetTimerManager().IsTimerActive(Timer_AutoFire);
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AUTO] Timer_AutoFire active=%d Interval=%.3f"), bActive ? 1 : 0, Interval);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Green,
+			FString::Printf(TEXT("AUTO START active=%d int=%.2f"), bActive ? 1 : 0, Interval));
+	}
+}
+
+void ULGSCombatCoreComponent::StopAutoFire()
+{
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AUTO] StopAutoFire"));
+
+	bIsAutoFiring = false;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(Timer_AutoFire);
+
+		const bool bActive = World->GetTimerManager().IsTimerActive(Timer_AutoFire);
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AUTO] Timer_AutoFire active(after clear)=%d"), bActive ? 1 : 0);
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Red, TEXT("AUTO STOP"));
+		}
+	}
+}
+
+void ULGSCombatCoreComponent::AutoFireTick()
+{
+	if (!bIsAutoFiring)
+	{
+		StopAutoFire();
+		return;
+	}
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AUTO] Tick bCanFire=%d"), bCanFire ? 1 : 0);
+
+	TryPrimary();
+}
+
+
+void ULGSCombatCoreComponent::ResetFire()
+{
+	bCanFire = true;
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AUTO] ResetFire -> bCanFire=1"));
+}
+//end 2_18
+
+
 
 //1_30 combat core swing for the fences___TEST PHASE
 void ULGSCombatCoreComponent::DoMeleeSwing()
@@ -403,10 +487,6 @@ void ULGSCombatCoreComponent::PerformMeleeTrace()
 
 //end 2_2
 
-void ULGSCombatCoreComponent::ResetFire()
-{
-	bCanFire = true;
-}
 
 void ULGSCombatCoreComponent::ResetMelee()
 {
