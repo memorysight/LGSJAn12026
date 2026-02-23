@@ -1,5 +1,6 @@
 #include "LGSCombatCoreComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 #include "TimerManager.h"
@@ -355,13 +356,32 @@ void ULGSCombatCoreComponent::PerformMeleeTrace()
 	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
 	if (!OwnerChar) return;
 
-	USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P();
-	if (!Arms) return;
+	// USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P();
+	// if (!Arms) return;
+	//
+	// // --- Start position from socket (or fallback) ---
+	// const bool bHasSocket = Arms->DoesSocketExist(MeleeTraceSocketName);
+	// const FVector Start = bHasSocket ? Arms->GetSocketLocation(MeleeTraceSocketName)
+	// 								 : Arms->GetComponentLocation();
 
-	// --- Start position from socket (or fallback) ---
-	const bool bHasSocket = Arms->DoesSocketExist(MeleeTraceSocketName);
-	const FVector Start = bHasSocket ? Arms->GetSocketLocation(MeleeTraceSocketName)
-									 : Arms->GetComponentLocation();
+	//new 2_23
+	UStaticMeshComponent* Weapon = OwnerChar->GetMeleeWeaponVisual();
+	if (!Weapon || !Weapon->GetStaticMesh())
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] No MeleeWeaponVisual or StaticMesh"));
+		return;
+	}
+
+	if (!Weapon->DoesSocketExist(TEXT("Trace_Start")) ||
+		!Weapon->DoesSocketExist(TEXT("Trace_End")))
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] Trace sockets missing on weapon mesh"));
+		return;
+	}
+
+	const FVector Start = Weapon->GetSocketLocation(TEXT("Trace_Start"));
+	const FVector End   = Weapon->GetSocketLocation(TEXT("Trace_End"));
+	//end 2_23
 
 	// --- Aim direction (camera forward preferred) ---
 	FVector Dir = OwnerChar->GetActorForwardVector();
@@ -371,7 +391,7 @@ void ULGSCombatCoreComponent::PerformMeleeTrace()
 	}
 	Dir = Dir.GetSafeNormal();
 
-	const FVector End = Start + (Dir * MeleeTraceDistance);
+	// const FVector End = Start + (Dir * MeleeTraceDistance);
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MeleeTrace), /*bTraceComplex*/ false);
 	Params.AddIgnoredActor(OwnerChar);
@@ -401,10 +421,10 @@ void ULGSCombatCoreComponent::PerformMeleeTrace()
 		DrawDebugSphere(World, Start, MeleeTraceRadius, 12, Color, false, 0.03f);
 		DrawDebugSphere(World, End,   MeleeTraceRadius, 12, Color, false, 0.03f);
 
-		if (!bHasSocket)
-		{
-			DrawDebugString(World, Start, TEXT("Socket missing!"), nullptr, FColor::Yellow, 0.03f, false);
-		}
+		// if (!bHasSocket)
+		// {
+		// 	DrawDebugString(World, Start, TEXT("Socket missing!"), nullptr, FColor::Yellow, 0.03f, false);
+		// }
 	}
 
 	if (!bAnyHit || Hits.Num() == 0)
@@ -451,7 +471,8 @@ void ULGSCombatCoreComponent::PerformMeleeTrace()
 		// IMPORTANT:
 		// Some collision setups produce non-blocking overlaps.
 		// SweepMulti returns both; ApplyDamage works either way.
-		const FVector UseDir = Dir;
+		// const FVector UseDir = Dir;
+		const FVector UseDir = (End - Start).GetSafeNormal();
 
 		// Option A: PointDamage (keeps your existing approach)
 		UGameplayStatics::ApplyPointDamage(

@@ -164,6 +164,9 @@ public:
 	USphereComponent* GetShieldCollisionComp() const { return ShieldCollisionComp; }
 	UStaticMeshComponent* GetShieldVisualComp() const { return ShieldVisualComp; }
 
+	//new 2_23
+	UStaticMeshComponent* GetMeleeWeaponVisual() const { return MeleeWeaponVisual; }
+	//end 2_23
 
 protected:
 	/** Called for movement input */
