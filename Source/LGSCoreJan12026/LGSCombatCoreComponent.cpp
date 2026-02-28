@@ -346,167 +346,100 @@ void ULGSCombatCoreComponent::StopMeleeTraceLoop()
 }
 
 //very experimental add
+//new_2_29
 void ULGSCombatCoreComponent::PerformMeleeTrace()
 {
-	if (!bMeleeDamageActive) return;
+    if (!bMeleeDamageActive) return;
 
-	UWorld* World = GetWorld();
-	if (!World) return;
+    UWorld* World = GetWorld();
+    if (!World) return;
 
-	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
-	if (!OwnerChar) return;
+    ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
+    if (!OwnerChar) return;
 
-	// USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P();
-	// if (!Arms) return;
-	//
-	// // --- Start position from socket (or fallback) ---
-	// const bool bHasSocket = Arms->DoesSocketExist(MeleeTraceSocketName);
-	// const FVector Start = bHasSocket ? Arms->GetSocketLocation(MeleeTraceSocketName)
-	// 								 : Arms->GetComponentLocation();
+    UStaticMeshComponent* Weapon = OwnerChar->GetMeleeWeaponVisual();
+    if (!Weapon || !Weapon->GetStaticMesh())
+    {
+        UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] No MeleeWeaponVisual or StaticMesh"));
+        return;
+    }
 
-	//new 2_23
-	UStaticMeshComponent* Weapon = OwnerChar->GetMeleeWeaponVisual();
-	if (!Weapon || !Weapon->GetStaticMesh())
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] No MeleeWeaponVisual or StaticMesh"));
-		return;
-	}
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(MeleeTrace), false);
+    Params.AddIgnoredActor(OwnerChar);
 
-	if (!Weapon->DoesSocketExist(TEXT("Trace_Start")) ||
-		!Weapon->DoesSocketExist(TEXT("Trace_End")))
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] Trace sockets missing on weapon mesh"));
-		return;
-	}
+    auto DoWeaponSweep = [&](FName StartSocket, FName EndSocket)
+    {
+        if (!Weapon->DoesSocketExist(StartSocket) || !Weapon->DoesSocketExist(EndSocket))
+        {
+            UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] Missing sockets: %s or %s"),
+                *StartSocket.ToString(), *EndSocket.ToString());
+            return;
+        }
 
-	const FVector Start = Weapon->GetSocketLocation(TEXT("Trace_Start"));
-	const FVector End   = Weapon->GetSocketLocation(TEXT("Trace_End"));
-	//end 2_23
+        const FVector Start = Weapon->GetSocketLocation(StartSocket);
+        const FVector End   = Weapon->GetSocketLocation(EndSocket);
 
-	// --- Aim direction (camera forward preferred) ---
-	FVector Dir = OwnerChar->GetActorForwardVector();
-	if (UCameraComponent* Cam = OwnerChar->GetFirstPersonCameraComponent())
-	{
-		Dir = Cam->GetForwardVector();
-	}
-	Dir = Dir.GetSafeNormal();
+        TArray<FHitResult> Hits;
 
-	// const FVector End = Start + (Dir * MeleeTraceDistance);
+        const bool bAnyHit = World->SweepMultiByChannel(
+            Hits,
+            Start,
+            End,
+            FQuat::Identity,
+            MeleeTraceChannel,
+            FCollisionShape::MakeSphere(MeleeTraceRadius),
+            Params
+        );
 
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(MeleeTrace), /*bTraceComplex*/ false);
-	Params.AddIgnoredActor(OwnerChar);
+        if (bDrawMeleeDebug)
+        {
+            const FColor Color = bAnyHit ? FColor::Red : FColor::Green;
+            DrawDebugLine(World, Start, End, Color, false, 0.03f, 0, 2.0f);
+            DrawDebugSphere(World, Start, MeleeTraceRadius, 12, Color, false, 0.03f);
+            DrawDebugSphere(World, End,   MeleeTraceRadius, 12, Color, false, 0.03f);
+        }
 
-	// Helpful while debugging:
-	// Params.bReturnPhysicalMaterial = true;
+        if (!bAnyHit || Hits.Num() == 0)
+        {
+            return;
+        }
 
-	TArray<FHitResult> Hits;
+        Hits.Sort([](const FHitResult& A, const FHitResult& B){ return A.Distance < B.Distance; });
 
-	// SweepMulti so we can see *everything* we touch (capsule/mesh/etc)
-	const bool bAnyHit = World->SweepMultiByChannel(
-		Hits,
-		Start,
-		End,
-		FQuat::Identity,
-		MeleeTraceChannel,
-		FCollisionShape::MakeSphere(MeleeTraceRadius),
-		Params
-	);
+        const FVector UseDir = (End - Start).GetSafeNormal();
 
-	// --- Debug draw ---
-	if (bDrawMeleeDebug)
-	{
-		const FColor Color = bAnyHit ? FColor::Red : FColor::Green;
+        for (const FHitResult& H : Hits)
+        {
+            AActor* HitActor = H.GetActor();
+            if (!HitActor || HitActor == OwnerChar) continue;
 
-		DrawDebugLine(World, Start, End, Color, false, 0.03f, 0, 2.0f);
-		DrawDebugSphere(World, Start, MeleeTraceRadius, 12, Color, false, 0.03f);
-		DrawDebugSphere(World, End,   MeleeTraceRadius, 12, Color, false, 0.03f);
+            if (HitActorsThisSwing.Contains(HitActor)) continue;
+            HitActorsThisSwing.Add(HitActor);
 
-		// if (!bHasSocket)
-		// {
-		// 	DrawDebugString(World, Start, TEXT("Socket missing!"), nullptr, FColor::Yellow, 0.03f, false);
-		// }
-	}
+            UGameplayStatics::ApplyPointDamage(
+                HitActor,
+                MeleeDamage,
+                UseDir,
+                H,
+                OwnerChar->GetController(),
+                OwnerChar,
+                nullptr
+            );
 
-	if (!bAnyHit || Hits.Num() == 0)
-	{
-		// Uncomment for spammy debugging:
-		// UE_LOG(LogTemplateCharacter, VeryVerbose, TEXT("[MELEE] No hits"));
-		return;
-	}
+            UE_LOG(LogTemplateCharacter, Warning, TEXT("[MELEE] Hit %s via %s->%s"),
+                *GetNameSafe(HitActor), *StartSocket.ToString(), *EndSocket.ToString());
 
-	// Sort by distance so closest hit processes first (optional but nice)
-	Hits.Sort([](const FHitResult& A, const FHitResult& B)
-	{
-		return A.Distance < B.Distance;
-	});
+            // If you do knockback, do it HERE so it also only happens once per actor per swing.
+        }
+    };
 
-	// Optional: one-time per tick log to see what we’re hitting
-	UE_LOG(LogTemplateCharacter, Warning,
-		TEXT("[MELEE] SweepMulti hit count=%d (Channel=%d)"),
-		Hits.Num(), (int32)MeleeTraceChannel);
-
-	for (const FHitResult& H : Hits)
-	{
-		AActor* HitActor = H.GetActor();
-		UPrimitiveComponent* HitComp = H.GetComponent();
-
-		if (!HitActor || HitActor == OwnerChar) continue;
-
-		// Log what we hit (this is the big “Countess mystery” resolver)
-		UE_LOG(LogTemplateCharacter, Warning,
-			TEXT("    -> %s | Comp=%s | Block=%d | Dist=%.1f"),
-			*GetNameSafe(HitActor),
-			*GetNameSafe(HitComp),
-			H.bBlockingHit ? 1 : 0,
-			H.Distance);
-
-		// If you ONLY want to damage characters/pawns, enable this filter:
-		// (Turrets likely aren’t pawns; so only enable if desired)
-		// if (!HitActor->IsA<APawn>() && !HitActor->IsA<ACharacter>()) continue;
-
-		// Prevent hitting same actor twice in one swing
-		if (HitActorsThisSwing.Contains(HitActor)) continue;
-		HitActorsThisSwing.Add(HitActor);
-
-		// IMPORTANT:
-		// Some collision setups produce non-blocking overlaps.
-		// SweepMulti returns both; ApplyDamage works either way.
-		// const FVector UseDir = Dir;
-		const FVector UseDir = (End - Start).GetSafeNormal();
-
-		// Option A: PointDamage (keeps your existing approach)
-		UGameplayStatics::ApplyPointDamage(
-			HitActor,
-			MeleeDamage,
-			UseDir,
-			H,
-			OwnerChar->GetController(),
-			OwnerChar,
-			nullptr
-		);
-
-		// Option B: Plain ApplyDamage (uncomment to test if Countess only listens to AnyDamage)
-		/*
-		UGameplayStatics::ApplyDamage(
-			HitActor,
-			MeleeDamage,
-			OwnerChar->GetController(),
-			OwnerChar,
-			nullptr
-		);
-		*/
-
-		UE_LOG(LogTemplateCharacter, Warning,
-			TEXT("[MELEE] Applied %.1f damage to %s"),
-			MeleeDamage, *GetNameSafe(HitActor));
-
-		// If you only want ONE target per swing tick, break here:
-		// break;
-	}
+    // Call sweeps for each cutting edge
+    DoWeaponSweep(TEXT("Trace_L_Base"), TEXT("Trace_L_Tip"));
+    DoWeaponSweep(TEXT("Trace_R_Base"), TEXT("Trace_R_Tip"));
 }
 //testing
-
 //end 2_2
+//end2_28
 
 
 void ULGSCombatCoreComponent::ResetMelee()
