@@ -199,7 +199,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 		//end 1_30
 
-	//1_23_26 make it extra deterministic
+	//1_23_26 make it extra deterministic   build test
 	if (ShieldComp)
 	{
 		// Ensures the component applies its initial "off" state on play start
