@@ -7,6 +7,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+//new 3_12_Sprint
+#include "GameFramework/CharacterMovementComponent.h"
+//end 3_12
 //1_19_26
 #include "Components/SphereComponent.h"
 #include "Components/SceneComponent.h"
@@ -39,7 +42,9 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 {
 
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
-		
+	//new 3_12_Sprint
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	//end 3_12
 	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
@@ -118,9 +123,11 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	}
 	//end 1_23_26
 
-	//new HyperDrive 1_27_26
+	//HyperDrive 1_27_26
 	HyperDriveComp = CreateDefaultSubobject<ULGSHyperDriveComponent>(TEXT("HyperDriveComp"));
 	//end 1_27_26
+
+	
 	
 }
 
@@ -253,6 +260,39 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 		}
 		//end2_18
 
+		//new 3_12_Sprint
+		if (SprintAction)
+		{
+			EnhancedInputComponent->BindAction(
+				SprintAction,
+				ETriggerEvent::Started,
+				this,
+				&ALGSCoreJan12026Character::OnSprintStarted
+			);
+
+			EnhancedInputComponent->BindAction(
+				SprintAction,
+				ETriggerEvent::Completed,
+				this,
+				&ALGSCoreJan12026Character::OnSprintReleased
+			);
+
+			EnhancedInputComponent->BindAction(
+				SprintAction,
+				ETriggerEvent::Canceled,
+				this,
+				&ALGSCoreJan12026Character::OnSprintReleased
+			);
+
+			UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] Bound SprintAction=%s"),
+				*GetNameSafe(SprintAction));
+		}
+		else
+		{
+			UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] SprintAction is NULL"));
+		}
+		//end_3_12_Sprint
+
 		if (CombatCore && ToggleCombatModeAction)
 		{
 			EnhancedInputComponent->BindAction(
@@ -310,6 +350,48 @@ void ALGSCoreJan12026Character::Look(const FInputActionValue& Value)
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
 }
+
+//new 3_12_Sprint
+void ALGSCoreJan12026Character::OnSprintStarted()
+{
+	bSprintHeld = true;
+	UpdateSprintState();
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Sprint Start held=%d sprinting=%d speed=%.1f"),
+		bSprintHeld ? 1 : 0,
+		bIsSprinting ? 1 : 0,
+		GetCharacterMovement() ? GetCharacterMovement()->MaxWalkSpeed : -1.f);
+}
+
+void ALGSCoreJan12026Character::OnSprintReleased()
+{
+	bSprintHeld = false;
+	UpdateSprintState();
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Sprint Stop held=%d sprinting=%d speed=%.1f"),
+		bSprintHeld ? 1 : 0,
+		bIsSprinting ? 1 : 0,
+		GetCharacterMovement() ? GetCharacterMovement()->MaxWalkSpeed : -1.f);
+}
+
+void ALGSCoreJan12026Character::UpdateSprintState()
+{
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (!MoveComp)
+	{
+		return;
+	}
+
+	// For first pass, sprint is simply "button held".
+	// Later we can require move input, crouch state, slide state, etc.
+	bIsSprinting = bSprintHeld;
+
+	MoveComp->MaxWalkSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
+}
+//end 3_12_Sprint
+
+
+
 //1_4_26
 void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 {

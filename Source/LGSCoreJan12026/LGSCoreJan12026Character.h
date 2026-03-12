@@ -74,14 +74,18 @@ class ALGSCoreJan12026Character : public ACharacter
 	void OnToggleShieldPressed();
 	//end 1_23_26
 
-	//new HyperDrive 1_27_26
+	//HyperDrive 1_27_26
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="HyperDrive", meta=(AllowPrivateAccess="true"))
 	ULGSHyperDriveComponent* HyperDriveComp = nullptr;
 
 	virtual void Landed(const FHitResult& Hit) override;
 	//end 1_27_26
 	
-
+	//New 3_12_Sprint
+	/** Sprint Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess="true"))
+	UInputAction* SprintAction;
+	//end 3_12_Sprint
 
 	//1/2/26
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat", meta=(AllowPrivateAccess="true"))
@@ -178,6 +182,28 @@ protected:
 	//1_3_26
 	virtual void BeginPlay() override;
 	//end 1_3_26
+
+	//new 3_12_Sprint
+	UFUNCTION()
+	void OnSprintStarted();
+
+	UFUNCTION()
+	void OnSprintReleased();
+
+	void UpdateSprintState();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|Sprint", meta=(AllowPrivateAccess="true"))
+	float WalkSpeed = 600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|Sprint", meta=(AllowPrivateAccess="true"))
+	float SprintSpeed = 950.f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Movement|Sprint", meta=(AllowPrivateAccess="true"))
+	bool bSprintHeld = false;
+
+	UPROPERTY(BlueprintReadOnly, Category="Movement|Sprint", meta=(AllowPrivateAccess="true"))
+	bool bIsSprinting = false;
+	//end 3_12_Sprint
 
 protected:
 	// APawn interface
