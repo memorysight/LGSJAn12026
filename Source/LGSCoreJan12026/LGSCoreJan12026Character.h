@@ -87,6 +87,19 @@ class ALGSCoreJan12026Character : public ACharacter
 	UInputAction* SprintAction;
 	//end 3_12_Sprint
 
+	// New 3_13_Crouch
+	/** Crouch Input Action */
+
+	UFUNCTION()
+	void OnCrouchStarted();
+
+	UFUNCTION()
+	void OnCrouchReleased();
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess="true"))
+	UInputAction* CrouchAction;
+	// end 3_13_Crouch
+
 	//1/2/26
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat", meta=(AllowPrivateAccess="true"))
 	ULGSCombatCoreComponent* CombatCore;
@@ -204,6 +217,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="Movement|Sprint", meta=(AllowPrivateAccess="true"))
 	bool bIsSprinting = false;
 	//end 3_12_Sprint
+
+	
 
 protected:
 	// APawn interface

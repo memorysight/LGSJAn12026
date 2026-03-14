@@ -45,6 +45,10 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	//new 3_12_Sprint
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 	//end 3_12
+
+	//new 3_14
+	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
+	//end 3_14
 	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
@@ -301,6 +305,32 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 			);
 		}
 
+		//3_14_Crouch
+		if (CrouchAction)
+		{
+			EnhancedInputComponent->BindAction(
+				CrouchAction,
+				ETriggerEvent::Started,
+				this,
+				&ALGSCoreJan12026Character::OnCrouchStarted
+			);
+
+			EnhancedInputComponent->BindAction(
+				CrouchAction,
+				ETriggerEvent::Completed,
+				this,
+				&ALGSCoreJan12026Character::OnCrouchReleased
+			);
+
+			EnhancedInputComponent->BindAction(
+				CrouchAction,
+				ETriggerEvent::Canceled,
+				this,
+				&ALGSCoreJan12026Character::OnCrouchReleased
+			);
+		}
+	//end3_14 crouch
+
 		//1_23_26 test for intended performance
 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] SetupPlayerInputComponent: ToggleShieldAction=%s"),
 		*GetNameSafe(ToggleShieldAction));
@@ -324,6 +354,10 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input Component!"), *GetNameSafe(this));
 	}
 }
+
+
+
+
 
 void ALGSCoreJan12026Character::Move(const FInputActionValue& Value)
 {
@@ -390,6 +424,30 @@ void ALGSCoreJan12026Character::UpdateSprintState()
 }
 //end 3_12_Sprint
 
+//new 3_14 crouch
+void ALGSCoreJan12026Character::OnCrouchStarted()
+{
+	Crouch();
+
+	if (bIsCrouched)
+	{
+		bSprintHeld = false;
+		UpdateSprintState();
+	}
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Crouch Start crouched=%d"),
+		bIsCrouched ? 1 : 0);
+}
+
+void ALGSCoreJan12026Character::OnCrouchReleased()
+{
+	UnCrouch();
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Crouch Stop crouched=%d"),
+		bIsCrouched ? 1 : 0);
+}
+
+//new_3)_14
 
 
 //1_4_26
