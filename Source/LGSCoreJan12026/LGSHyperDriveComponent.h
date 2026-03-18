@@ -42,6 +42,8 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="HyperDrive|FX")
 	FOnHyperDriveSimple OnHyperDriveEnded;
 
+	
+
 protected:
 	virtual void BeginPlay() override;
 
