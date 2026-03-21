@@ -25,8 +25,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="HyperDrive")
 	void RegisterKill();
 
-	UFUNCTION(BlueprintPure, Category="HyperDrive")
-	bool IsHyperDriveActive() const { return bHyperDriveActive; }
+	
 
 	// Called by owning Character's Landed()
 	void HandleLanded(const FHitResult& Hit);
@@ -42,6 +41,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="HyperDrive|FX")
 	FOnHyperDriveSimple OnHyperDriveEnded;
 
+	//new 3_21
+	UFUNCTION(BlueprintPure, Category="HyperDrive")
+	bool IsHyperDriveActive() const;
+	//end 3_21
 	
 
 protected:

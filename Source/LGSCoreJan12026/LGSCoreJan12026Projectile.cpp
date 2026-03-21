@@ -1,58 +1,89 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "LGSCoreJan12026Projectile.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+//new 3_21 explosive bullets make normal work
+#include "Kismet/GameplayStatics.h"
+//end 3_21
 #include "Components/SphereComponent.h"
 
-
-ALGSCoreJan12026Projectile::ALGSCoreJan12026Projectile() 
+ALGSCoreJan12026Projectile::ALGSCoreJan12026Projectile()
 {
-	// Use a sphere as a simple collision representation
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
 	CollisionComp->InitSphereRadius(5.0f);
 	CollisionComp->BodyInstance.SetCollisionProfileName("Projectile");
-	CollisionComp->OnComponentHit.AddDynamic(this, &ALGSCoreJan12026Projectile::OnHit);		// set up a notification for when this component hits something blocking
+	CollisionComp->OnComponentHit.AddDynamic(this, &ALGSCoreJan12026Projectile::OnHit);
 
-	// Players can't walk on it
 	CollisionComp->SetWalkableSlopeOverride(FWalkableSlopeOverride(WalkableSlope_Unwalkable, 0.f));
 	CollisionComp->CanCharacterStepUpOn = ECB_No;
 
-	// Set as root component
 	RootComponent = CollisionComp;
 
-	// Use a ProjectileMovementComponent to govern this projectile's movement
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileComp"));
 	ProjectileMovement->UpdatedComponent = CollisionComp;
 	ProjectileMovement->InitialSpeed = 3777.f;
-	ProjectileMovement->MaxSpeed = 3000.f;
+	ProjectileMovement->MaxSpeed = 3777.f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
-	ProjectileMovement->bShouldBounce = true;
+	ProjectileMovement->bShouldBounce = false;
 
-	// Die after 3 seconds by default
 	InitialLifeSpan = 3.0f;
 }
 
-//new 1_3_26
 void ALGSCoreJan12026Projectile::BeginPlay()
 {
 	Super::BeginPlay();
 
 	if (ProjectileMovement)
 	{
-		// Force velocity from the spawned rotation.
 		ProjectileMovement->Velocity = GetActorForwardVector() * ProjectileMovement->InitialSpeed;
 	}
 }
-//end 1_3_26
 
-
-void ALGSCoreJan12026Projectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+void ALGSCoreJan12026Projectile::OnHit(
+	UPrimitiveComponent* HitComp,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	FVector NormalImpulse,
+	const FHitResult& Hit)
 {
-	// Only add impulse and destroy projectile if we hit a physics
-	if ((OtherActor != nullptr) && (OtherActor != this) && (OtherComp != nullptr) && OtherComp->IsSimulatingPhysics())
+	if (!OtherActor || OtherActor == this || OtherActor == GetOwner())
+	{
+		return;
+	}
+
+	HandleImpact(Hit, OtherActor, OtherComp);
+}
+
+//new 3_21 Make normal bullets work
+void ALGSCoreJan12026Projectile::HandleImpact(
+	const FHitResult& Hit,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp)
+{
+	if (OtherActor && OtherActor != this && OtherActor != GetOwner())
+	{
+		AController* InstigatorController = nullptr;
+		if (APawn* InstigatorPawn = GetInstigator())
+		{
+			InstigatorController = InstigatorPawn->GetController();
+		}
+
+		if (DirectHitDamage > 0.0f)
+		{
+			UGameplayStatics::ApplyPointDamage(
+				OtherActor,
+				DirectHitDamage,
+				GetVelocity().GetSafeNormal(),
+				Hit,
+				InstigatorController,
+				this,
+				nullptr
+			);
+		}
+	}
+
+	if (OtherComp && OtherComp->IsSimulatingPhysics())
 	{
 		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
-
-		Destroy();
 	}
+
+	Destroy();
 }

@@ -6,10 +6,14 @@
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Pawn.h"
-//new 2_12
+//2_12
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 //end 2_12
+//new 3_21 ExplosiveBullets
+#include "LGSCoreJan12026Projectile.h"
+#include "LGSHyperDriveComponent.h"
+//end 3_21
 #include "Camera/CameraComponent.h"
 #include "LGSCoreJan12026Character.h"
 
@@ -87,6 +91,7 @@ void ULGSCombatCoreComponent::TrySecondary()
 	// Reserved for Aim / Block / AltFire later .
 }
 
+//new 3_21 ExplosiveBullets
 void ULGSCombatCoreComponent::DoRangedShot()
 {
 	if (!bCanFire) return;
@@ -98,8 +103,6 @@ void ULGSCombatCoreComponent::DoRangedShot()
 	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
 	if (!OwnerChar) { ResetFire(); return; }
 
-	//new 2_12 rifleAnimation
-	// ✅ Play rifle fire montage (visual)
 	// --- Ranged fire montage (first-person arms) ---
 	if (FP_Rifle_Shoot_Montage)
 	{
@@ -107,7 +110,6 @@ void ULGSCombatCoreComponent::DoRangedShot()
 		{
 			if (UAnimInstance* AnimInst = Arms->GetAnimInstance())
 			{
-				// Optional: don't restart if already playing
 				if (!AnimInst->Montage_IsPlaying(FP_Rifle_Shoot_Montage))
 				{
 					AnimInst->Montage_Play(FP_Rifle_Shoot_Montage, 1.0f);
@@ -124,17 +126,36 @@ void ULGSCombatCoreComponent::DoRangedShot()
 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] FP_Rifle_Shoot_Montage is NULL"));
 	}
 
-	//end 2_12
+	// Choose projectile class
+	TSubclassOf<ALGSCoreJan12026Projectile> ChosenClass = BulletClass;
 
-	if (!BulletClass)
+	if (ULGSHyperDriveComponent* HyperComp = OwnerChar->FindComponentByClass<ULGSHyperDriveComponent>())
 	{
-		World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
+		if (HyperComp->IsHyperDriveActive() && HyperDriveBulletClass)
+		{
+			if (FMath::FRand() <= HyperDriveBulletChance)
+			{
+				ChosenClass = HyperDriveBulletClass;
+				UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] HyperDrive projectile selected"));
+			}
+		}
+	}
+
+	if (!ChosenClass)
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] No projectile class set"));
+
+		World->GetTimerManager().SetTimer(
+			Timer_FireCooldown,
+			this,
+			&ULGSCombatCoreComponent::ResetFire,
+			FireCooldown,
+			false
+		);
 		return;
 	}
-	
-	//1_3_26
+
 	// Prefer muzzle socket location, but aim with camera rotation for FPS feel.
-	// Always initialize to something valid.
 	FTransform SpawnXform = OwnerChar->GetActorTransform();
 
 	UCameraComponent* Cam = OwnerChar->GetFirstPersonCameraComponent();
@@ -144,33 +165,40 @@ void ULGSCombatCoreComponent::DoRangedShot()
 	{
 		if (Mesh1P->DoesSocketExist(MuzzleSocketName))
 		{
-			// Use socket location, but aim where the camera looks
 			const FVector MuzzleLoc = Mesh1P->GetSocketLocation(MuzzleSocketName);
 			SpawnXform = FTransform(AimRot, MuzzleLoc);
 		}
 		else if (Cam)
 		{
-			// No socket: spawn a bit in front of camera
 			const FVector Loc = Cam->GetComponentLocation() + Cam->GetForwardVector() * 100.f;
 			SpawnXform = FTransform(AimRot, Loc);
 		}
 	}
 	else if (Cam)
 	{
-		// Mesh missing: still allow shooting
 		const FVector Loc = Cam->GetComponentLocation() + Cam->GetForwardVector() * 100.f;
 		SpawnXform = FTransform(AimRot, Loc);
 	}
-	//end 1_3_26
 
 	FActorSpawnParameters Params;
 	Params.Owner = OwnerChar;
 	Params.Instigator = OwnerChar;
 
-	World->SpawnActor<AActor>(BulletClass, SpawnXform, Params);
+	ALGSCoreJan12026Projectile* SpawnedProj =
+		World->SpawnActor<ALGSCoreJan12026Projectile>(ChosenClass, SpawnXform, Params);
 
-	World->GetTimerManager().SetTimer(Timer_FireCooldown, this, &ULGSCombatCoreComponent::ResetFire, FireCooldown, false);
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] Spawned projectile: %s"),
+		*GetNameSafe(SpawnedProj));
+
+	World->GetTimerManager().SetTimer(
+		Timer_FireCooldown,
+		this,
+		&ULGSCombatCoreComponent::ResetFire,
+		FireCooldown,
+		false
+	);
 }
+//end 3_21
 
 //new 2_18 autofire
 void ULGSCombatCoreComponent::StartAutoFire()

@@ -2,16 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-//1_3_26
 #include "Templates/SubclassOf.h"
 #include "TimerManager.h"
-//end 1_3_26
 #include "LGSCombatCoreComponent.generated.h"
 
-//1_3_26
 class UAnimMontage;
-class AActor; // optional (TSubclassOf generally fine, but harmless)
-//end 1_3_26
+class AActor;
+class ALGSCoreJan12026Projectile;
 
 UENUM(BlueprintType)
 enum class ECombatMode : uint8
@@ -19,7 +16,6 @@ enum class ECombatMode : uint8
 	Ranged UMETA(DisplayName="Ranged"),
 	Melee  UMETA(DisplayName="Melee")
 };
-
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatModeChanged, ECombatMode, NewMode);
 
@@ -46,14 +42,20 @@ public:
 
 	// --- Input intents (Character calls these) ---
 	UFUNCTION(BlueprintCallable, Category="Combat|Input")
-	void TryPrimary();   // LMB
+	void TryPrimary();
 
 	UFUNCTION(BlueprintCallable, Category="Combat|Input")
-	void TrySecondary(); // RMB (reserved)
+	void TrySecondary();
 
 	// --- Ranged config ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged")
-	TSubclassOf<AActor> BulletClass;
+	TSubclassOf<ALGSCoreJan12026Projectile> BulletClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged")
+	TSubclassOf<ALGSCoreJan12026Projectile> HyperDriveBulletClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float HyperDriveBulletChance = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged")
 	FName MuzzleSocketName = TEXT("Muzzle");
@@ -61,23 +63,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged")
 	float FireCooldown = 0.10f;
 
-	//2_12
 	UFUNCTION(BlueprintPure, Category="Combat")
 	bool IsRangedMode() const { return CombatMode == ECombatMode::Ranged; }
-	//end 2_12
 
-	//new 2_12 rifleAnim
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UAnimMontage> FP_Rifle_Shoot_Montage = nullptr;
-	//end 2_12
 
-	//new 2_28 autofire
 	UFUNCTION(BlueprintCallable, Category="Combat|Input")
 	void StartAutoFire();
 
 	UFUNCTION(BlueprintCallable, Category="Combat|Input")
 	void StopAutoFire();
-	//end 2_18
 
 	// --- Melee config ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Melee")
@@ -86,12 +82,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Melee")
 	float MeleeCooldown = 0.35f;
 
-	//2_1 BeginMeleeDamage
 	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
 	void BeginMeleeDamage();
-	//end 2_1
 
-	//new 2_2 EndMeleeDamage___Test!!
 	UFUNCTION(BlueprintCallable, Category="Combat|Melee")
 	void EndMeleeDamage();
 
@@ -117,26 +110,17 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
 	TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Pawn;
-	
-	//verify
-	// UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
-	// TEnumAsByte<ECollisionChannel> MeleeTraceChannel = ECC_Visibility;
 
 	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
 	bool bDrawMeleeDebug = true;
 
 	UPROPERTY(EditAnywhere, Category="Combat|Melee|Trace")
 	FName MeleeTraceSocketName = TEXT("WeaponSocket_R");
-	
-	//end 2_2__TESet2_3   
-	
-
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
-	//might be set to melee in the editor and throwing off assignment when toggling
 	UPROPERTY(EditAnywhere, Category="Combat|Mode")
 	ECombatMode CombatMode = ECombatMode::Ranged;
 
@@ -152,7 +136,6 @@ private:
 	void ResetFire();
 	void ResetMelee();
 
-	//new 2_28
 	bool bIsAutoFiring = false;
 	FTimerHandle Timer_AutoFire;
 
@@ -160,6 +143,5 @@ private:
 	void AutoFireTick();
 
 	UPROPERTY(EditAnywhere, Category="Combat|Ranged")
-	bool bIsFullAuto = true;          // if false, still single-shot
-	//end 2_18
+	bool bIsFullAuto = true;
 };

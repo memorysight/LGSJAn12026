@@ -219,32 +219,12 @@ void ULGSHyperDriveComponent::ResetKillStreak()
 	KillStreakCount = 0;
 }
 
-
-
-// ===== HyperRailgun TimeShift (MEGA 11/28) =====
-
-UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-bool bHyperRailgunTimeShiftEnabled = true;
-
-UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift", meta=(ClampMin="0.0", ClampMax="1.0"))
-float HyperRailgunTimeShiftChance = 0.3f; // 30%
-
-UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-float HyperRailgunGlobalDilation = 0.15f;
-
-UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-float HyperRailgunPlayerDilation = 1.0f;
-
-UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-float HyperRailgunDuration = 0.25f;
-
-UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HyperDrive|Railgun|TimeShift")
-int32 HyperRailgunMinEnemies = 1;
-
-UFUNCTION(BlueprintCallable, Category="HyperDrive|Railgun")
-void NotifyHyperRailgunHit(int32 EnemiesHit, bool bWasKill);
-
-
+//new 3_21
+bool ULGSHyperDriveComponent::IsHyperDriveActive() const
+{
+	return bHyperDriveActive;
+}
+//end 3_21
 
 
 void ULGSHyperDriveComponent::HandleLanded(const FHitResult& Hit)
