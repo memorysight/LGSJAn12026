@@ -26,6 +26,9 @@ void ALGSExplosiveProjectile::HandleImpact(
 
 	bHasExploded = true;
 
+	// Let BP still decide AI blood / impact FX / hit confirm logic if desired.
+	BP_OnProjectileImpact(Hit, OtherActor, OtherComp);
+
 	const FVector ImpactPoint = Hit.bBlockingHit ? FVector(Hit.ImpactPoint) : GetActorLocation();
 
 	Explode(ImpactPoint);

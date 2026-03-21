@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,6 +7,7 @@
 
 class USphereComponent;
 class UProjectileMovementComponent;
+class UDamageType;
 
 UCLASS(config=Game)
 class LGSCOREJAN12026_API ALGSCoreJan12026Projectile : public AActor
@@ -39,11 +38,20 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	//new 3_21_ExplosiveBullet, normal bullet to work
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage", meta=(ClampMin="0.0"))
 	float DirectHitDamage = 25.0f;
-	//end _3_21
-	
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Damage")
+	TSubclassOf<UDamageType> DamageTypeClass = nullptr;
+
+	// C++ owns damage / destroy. BP owns impact FX decisions like blood, sparks, decals.
+	UFUNCTION(BlueprintImplementableEvent, Category="Projectile|Impact")
+	void BP_OnProjectileImpact(
+		const FHitResult& Hit,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp
+	);
+
 	virtual void HandleImpact(
 		const FHitResult& Hit,
 		AActor* OtherActor,

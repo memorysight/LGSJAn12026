@@ -1,9 +1,9 @@
 #include "LGSCoreJan12026Projectile.h"
 #include "GameFramework/ProjectileMovementComponent.h"
-//new 3_21 explosive bullets make normal work
 #include "Kismet/GameplayStatics.h"
-//end 3_21
 #include "Components/SphereComponent.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/Controller.h"
 
 ALGSCoreJan12026Projectile::ALGSCoreJan12026Projectile()
 {
@@ -52,20 +52,19 @@ void ALGSCoreJan12026Projectile::OnHit(
 	HandleImpact(Hit, OtherActor, OtherComp);
 }
 
-//new 3_21 Make normal bullets work
 void ALGSCoreJan12026Projectile::HandleImpact(
 	const FHitResult& Hit,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp)
 {
+	AController* InstigatorController = nullptr;
+	if (APawn* InstigatorPawn = GetInstigator())
+	{
+		InstigatorController = InstigatorPawn->GetController();
+	}
+
 	if (OtherActor && OtherActor != this && OtherActor != GetOwner())
 	{
-		AController* InstigatorController = nullptr;
-		if (APawn* InstigatorPawn = GetInstigator())
-		{
-			InstigatorController = InstigatorPawn->GetController();
-		}
-
 		if (DirectHitDamage > 0.0f)
 		{
 			UGameplayStatics::ApplyPointDamage(
@@ -74,11 +73,14 @@ void ALGSCoreJan12026Projectile::HandleImpact(
 				GetVelocity().GetSafeNormal(),
 				Hit,
 				InstigatorController,
-				this,
-				nullptr
+				GetOwner(),          // important: often better for downstream hit logic than 'this'
+				DamageTypeClass
 			);
 		}
 	}
+
+	// Important: run BP impact FX before destroy so blood/hit confirm logic still fires.
+	BP_OnProjectileImpact(Hit, OtherActor, OtherComp);
 
 	if (OtherComp && OtherComp->IsSimulatingPhysics())
 	{
