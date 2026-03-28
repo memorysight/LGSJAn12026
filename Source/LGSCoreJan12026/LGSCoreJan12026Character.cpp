@@ -1,4 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LGSCoreJan12026Character.h"
 #include "Animation/AnimInstance.h"
@@ -131,6 +130,11 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	HyperDriveComp = CreateDefaultSubobject<ULGSHyperDriveComponent>(TEXT("HyperDriveComp"));
 	//end 1_27_26
 
+	//new 3_27
+	PrimaryActorTick.bCanEverTick = true;
+	NormalGravityScale = GetCharacterMovement() ? GetCharacterMovement()->GravityScale : 1.0f;
+	AirWalkEnergyCurrent = AirWalkEnergyMax;
+	//end 3_27
 	
 	
 }
@@ -348,6 +352,39 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 			);
 		}
 		//end 1_23_26
+
+		//new 3_27 Air Walk
+		if (AirWalkAction)
+		{
+			EnhancedInputComponent->BindAction(
+				AirWalkAction,
+				ETriggerEvent::Started,
+				this,
+				&ALGSCoreJan12026Character::OnAirWalkStarted
+			);
+
+			EnhancedInputComponent->BindAction(
+				AirWalkAction,
+				ETriggerEvent::Completed,
+				this,
+				&ALGSCoreJan12026Character::OnAirWalkReleased
+			);
+
+			EnhancedInputComponent->BindAction(
+				AirWalkAction,
+				ETriggerEvent::Canceled,
+				this,
+				&ALGSCoreJan12026Character::OnAirWalkReleased
+			);
+
+			UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] Bound AirWalkAction=%s"),
+				*GetNameSafe(AirWalkAction));
+		}
+		else
+		{
+			UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] AirWalkAction is NULL"));
+		}
+		//end 3_27
 	}
 	else
 	{
@@ -447,7 +484,227 @@ void ALGSCoreJan12026Character::OnCrouchReleased()
 		bIsCrouched ? 1 : 0);
 }
 
-//new_3)_14
+//end_3_14
+
+//new 3_27 AirWalk
+void ALGSCoreJan12026Character::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	UpdateAirWalk(DeltaSeconds);
+}
+
+void ALGSCoreJan12026Character::OnAirWalkStarted()
+{
+	if (!bHasAirWalkStrand)
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] No AirWalk strand"));
+		return;
+	}
+
+	bAirWalkHeld = true;
+	AirWalkHoldTime = 0.f;
+	bApexRollConsumed = false;
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB started"));
+}
+
+void ALGSCoreJan12026Character::OnAirWalkReleased()
+{
+	if (!bHasAirWalkStrand)
+	{
+		return;
+	}
+
+	const bool bWasLifting = bAirLiftActive;
+	const float HeldTime = AirWalkHoldTime;
+
+	bAirWalkHeld = false;
+	AirWalkHoldTime = 0.f;
+
+	if (bWasLifting)
+	{
+		EndAirLift(false);
+		FallGracefullyWithVelocityChanger();
+		EvaluateAirWalkApexRNG();
+
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB released -> end lift"));
+		return;
+	}
+
+	if (HeldTime < HoldThreshold)
+	{
+		PerformAirWalkTap();
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB tap -> AirWalk"));
+	}
+}
+
+void ALGSCoreJan12026Character::PerformAirWalkTap()
+{
+	if (bIsCrouched)
+	{
+		UnCrouch();
+	}
+
+	bSprintHeld = false;
+	UpdateSprintState();
+
+	const bool bIsFallingNow = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
+	const float UseImpulse = bIsFallingNow ? TapAirWalkImpulseAir : TapAirWalkImpulseGround;
+
+	LaunchCharacter(FVector(0.f, 0.f, UseImpulse), false, true);
+
+	AirWalkState = EAirWalkState::TapRise;
+	bApexRollConsumed = false;
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] Tap impulse=%.1f falling=%d"),
+		UseImpulse, bIsFallingNow ? 1 : 0);
+}
+
+void ALGSCoreJan12026Character::UpdateAirWalk(float DeltaSeconds)
+{
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (!MoveComp) return;
+
+	if (bAirWalkHeld && !bAirLiftActive)
+	{
+		AirWalkHoldTime += DeltaSeconds;
+
+		if (AirWalkHoldTime >= HoldThreshold)
+		{
+			BeginAirLift();
+		}
+	}
+
+	if (bAirLiftActive)
+	{
+		if (AirWalkEnergyCurrent <= 0.f)
+		{
+			EndAirLift(true);
+			FallGracefullyWithVelocityChanger();
+			EvaluateAirWalkApexRNG();
+			return;
+		}
+
+		AirWalkEnergyCurrent = FMath::Max(0.f, AirWalkEnergyCurrent - LiftEnergyDrainPerSecond * DeltaSeconds);
+
+		FVector V = MoveComp->Velocity;
+		V.Z = FMath::Min(V.Z + (LiftAccelerationZ * DeltaSeconds), LiftMaxUpVelocity);
+		MoveComp->Velocity = V;
+
+		// Slightly softer gravity during lift
+		MoveComp->GravityScale = LiftGravityScale;
+	}
+
+	// Apex detection for tap-rise
+	if (!bAirLiftActive && !bApexRollConsumed && MoveComp->IsFalling())
+	{
+		const float AbsZ = FMath::Abs(MoveComp->Velocity.Z);
+		if (AbsZ <= ApexVelocityThreshold)
+		{
+			EvaluateAirWalkApexRNG();
+		}
+	}
+}
+
+void ALGSCoreJan12026Character::BeginAirLift()
+{
+	if (bAirLiftActive) return;
+
+	if (bIsCrouched)
+	{
+		UnCrouch();
+	}
+
+	bSprintHeld = false;
+	UpdateSprintState();
+
+	bAirLiftActive = true;
+	AirWalkState = EAirWalkState::Lift;
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->GravityScale = LiftGravityScale;
+	}
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] BeginAirLift energy=%.1f"), AirWalkEnergyCurrent);
+}
+
+void ALGSCoreJan12026Character::EndAirLift(bool bFromEnergyDepletion)
+{
+	if (!bAirLiftActive) return;
+
+	bAirLiftActive = false;
+	AirWalkState = EAirWalkState::GracefulFall;
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->GravityScale = GracefulFallGravityScale;
+	}
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] EndAirLift depleted=%d energy=%.1f"),
+		bFromEnergyDepletion ? 1 : 0,
+		AirWalkEnergyCurrent);
+}
+
+void ALGSCoreJan12026Character::FallGracefullyWithVelocityChanger()
+{
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (!MoveComp) return;
+
+	FVector V = MoveComp->Velocity;
+
+	// soften harsh downward snap
+	if (V.Z < -600.f)
+	{
+		V.Z = -600.f;
+	}
+
+	MoveComp->Velocity = V;
+	MoveComp->GravityScale = GracefulFallGravityScale;
+
+	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] Graceful fall engaged velZ=%.1f"), V.Z);
+}
+void ALGSCoreJan12026Character::EvaluateAirWalkApexRNG()
+{
+	if (bApexRollConsumed) return;
+	bApexRollConsumed = true;
+
+	const float Roll = FMath::FRand();
+
+	if (Roll <= GodAirBoostChance)
+	{
+		bGodAirBoostAvailable = true;
+
+		LaunchCharacter(FVector(0.f, 0.f, GodAirBoostImpulse), false, true);
+
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(Timer_GodAirBoostReset);
+			World->GetTimerManager().SetTimer(
+				Timer_GodAirBoostReset,
+				this,
+				&ALGSCoreJan12026Character::ResetGodAirBoost,
+				0.35f,
+				false
+			);
+		}
+
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] GOD BOOST! roll=%.3f"), Roll);
+	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] No god boost. roll=%.3f"), Roll);
+	}
+}
+
+void ALGSCoreJan12026Character::ResetGodAirBoost()
+{
+	bGodAirBoostAvailable = false;
+}
+
+
+//end 3_27
 
 
 //1_4_26
@@ -569,13 +826,29 @@ void ALGSCoreJan12026Character::OnToggleShieldPressed()
 
 //end 1_23_26
 
-//new HyperDrive 1_27_26:  Careful adding HyperRail
+//HyperDrive 1_27_26:  Careful adding HyperRail
+//new 3_27 AirWalk
 void ALGSCoreJan12026Character::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->GravityScale = NormalGravityScale;
+	}
+
+	bAirLiftActive = false;
+	bAirWalkHeld = false;
+	AirWalkHoldTime = 0.f;
+	bApexRollConsumed = false;
+	AirWalkState = EAirWalkState::None;
+
+	// Optional light regen on landing
+	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
+
 	if (HyperDriveComp)
 	{
 		HyperDriveComp->HandleLanded(Hit);
 	}
 }
-//end 1_27_26
+//end 1_27_26 & 3_27
