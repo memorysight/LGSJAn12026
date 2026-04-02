@@ -82,10 +82,11 @@ void ALGSCoreJan12026Projectile::HandleImpact(
 	// Important: run BP impact FX before destroy so blood/hit confirm logic still fires.
 	BP_OnProjectileImpact(Hit, OtherActor, OtherComp);
 
-	if (OtherComp && OtherComp->IsSimulatingPhysics())
-	{
-		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
-	}
+	//new 4_2 Possible Cause to AI Ragdoll Issue
+	// if (OtherComp && OtherComp->IsSimulatingPhysics())
+	// {
+	// 	OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
+	// }
 
 	Destroy();
 }
