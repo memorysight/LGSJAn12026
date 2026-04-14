@@ -21,6 +21,10 @@
 //new 1_27
 #include "LGSHyperDriveComponent.h"
 //end 1_27
+//new 4_13 AirWalk
+#include "TimerManager.h"
+#include "LGSAirWalkComponent.h"
+//end 4_13
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 //1/2/26
@@ -48,7 +52,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	//new 3_14
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	//end 3_14
-	
+
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
 	FirstPersonCameraComponent->SetRelativeLocation(FVector(-10.f, 0.f, 60.f)); // Position the camera
@@ -87,7 +91,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	MeleeWeaponVisual->SetVisibility(false, true);
 	//end 1_3_26
 
-	
+
 	// RangedWeaponVisual->SetStaticMesh(nullptr);
 	// MeleeWeaponVisual->SetStaticMesh(nullptr);
 	//new 1_30 assign from data assets
@@ -95,7 +99,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	MeleeWeaponVisual->SetStaticMesh(nullptr);
 	//1_30 end
 
-	
+
 	RangedWeaponVisual->SetOnlyOwnerSee(true);
 	MeleeWeaponVisual->SetOnlyOwnerSee(true);
 	RangedWeaponVisual->SetOwnerNoSee(false);
@@ -130,13 +134,14 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	HyperDriveComp = CreateDefaultSubobject<ULGSHyperDriveComponent>(TEXT("HyperDriveComp"));
 	//end 1_27_26
 
-	//new 3_27
-	PrimaryActorTick.bCanEverTick = true;
-	NormalGravityScale = GetCharacterMovement() ? GetCharacterMovement()->GravityScale : 1.0f;
-	AirWalkEnergyCurrent = AirWalkEnergyMax;
-	//end 3_27
-	
-	
+	// //new 3_27
+	// PrimaryActorTick.bCanEverTick = true;
+	// NormalGravityScale = GetCharacterMovement() ? GetCharacterMovement()->GravityScale : 1.0f;
+	// AirWalkEnergyCurrent = AirWalkEnergyMax;
+	// //end 3_27
+	AirWalkComp = CreateDefaultSubobject<ULGSAirWalkComponent>(TEXT("AirWalkComp"));
+
+
 }
 
 void ALGSCoreJan12026Character::NotifyControllerChanged()
@@ -166,7 +171,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 
 	//1_23_26 test if pawn is correct
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[PAWN] BeginPlay: %s (%s)"),
-	*GetNameSafe(this), *GetClass()->GetName());
+		*GetNameSafe(this), *GetClass()->GetName());
 	//end 1_23_26
 
 	//1_23_26
@@ -175,14 +180,14 @@ void ALGSCoreJan12026Character::BeginPlay()
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
 			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
 		{
-			
-			
+
+
 			if (DefaultMappingContext)
 			{
 				Subsystem->ClearAllMappings();
 				Subsystem->AddMappingContext(DefaultMappingContext, 0);
 				UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] Mapping context applied in BeginPlay"));
-				
+
 			}
 			else
 			{
@@ -199,7 +204,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 
 
 	//new 1_30 combat core
-	
+
 	if (CombatCore)
 	{
 		CombatCore->OnCombatModeChanged.AddDynamic(
@@ -212,16 +217,16 @@ void ALGSCoreJan12026Character::BeginPlay()
 	{
 		UE_LOG(LogTemplateCharacter, Error, TEXT("[BEGINPLAY] CombatCore is NULL"));
 	}
-		//end 1_30
+	//end 1_30
 
-	//1_23_26 make it extra deterministic build test 
+//1_23_26 make it extra deterministic build test 
 	if (ShieldComp)
 	{
 		// Ensures the component applies its initial "off" state on play start
 		ShieldComp->DeactivateShield();
 	}
 	//end 1_23_26
-	
+
 }
 
 
@@ -229,21 +234,22 @@ void ALGSCoreJan12026Character::BeginPlay()
 void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
-	{EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	{
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Move);EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Look);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Move); EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALGSCoreJan12026Character::Look);
 
 		// Combat bindings autofire
 		//2_18
 		if (CombatCore && ShootAction)
 		{
-			
+
 			EnhancedInputComponent->BindAction(
-			ShootAction,
-			ETriggerEvent::Triggered,
-			CombatCore,
-			&ULGSCombatCoreComponent::StartAutoFire
-);
+				ShootAction,
+				ETriggerEvent::Triggered,
+				CombatCore,
+				&ULGSCombatCoreComponent::StartAutoFire
+			);
 
 			EnhancedInputComponent->BindAction(
 				ShootAction,
@@ -260,11 +266,11 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 			);
 
 			UE_LOG(LogTemplateCharacter, Warning,
-			TEXT("[INPUT] Bound ShootAction=%s to CombatCore=%s"),
-			*GetNameSafe(ShootAction),
-			*GetNameSafe(CombatCore));
+				TEXT("[INPUT] Bound ShootAction=%s to CombatCore=%s"),
+				*GetNameSafe(ShootAction),
+				*GetNameSafe(CombatCore));
 
-			
+
 		}
 		//end2_18
 
@@ -333,13 +339,13 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 				&ALGSCoreJan12026Character::OnCrouchReleased
 			);
 		}
-	//end3_14 crouch
+		//end3_14 crouch
 
-		//1_23_26 test for intended performance
+			//1_23_26 test for intended performance
 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[INPUT] SetupPlayerInputComponent: ToggleShieldAction=%s"),
-		*GetNameSafe(ToggleShieldAction));
+			*GetNameSafe(ToggleShieldAction));
 		//end 1_23_26
-		
+
 
 		//new 1_23_26 Shield Toggle
 		if (ToggleShieldAction)
@@ -487,224 +493,229 @@ void ALGSCoreJan12026Character::OnCrouchReleased()
 //end_3_14
 
 //new 3_27 AirWalk
-void ALGSCoreJan12026Character::Tick(float DeltaSeconds)
+// void ALGSCoreJan12026Character::Tick(float DeltaSeconds)
+// {
+// 	Super::Tick(DeltaSeconds);
+//
+// 	UpdateAirWalk(DeltaSeconds);
+// }
+//
+// void ALGSCoreJan12026Character::OnAirWalkStarted()
+// {
+// 	if (!bHasAirWalkStrand)
+// 	{
+// 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] No AirWalk strand"));
+// 		return;
+// 	}
+//
+// 	bAirWalkHeld = true;
+// 	AirWalkHoldTime = 0.f;
+// 	bApexRollConsumed = false;
+//
+// 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB started"));
+// }
+//
+// void ALGSCoreJan12026Character::OnAirWalkReleased()
+// {
+// 	if (!bHasAirWalkStrand)
+// 	{
+// 		return;
+// 	}
+//
+// 	const bool bWasLifting = bAirLiftActive;
+// 	const float HeldTime = AirWalkHoldTime;
+//
+// 	bAirWalkHeld = false;
+// 	AirWalkHoldTime = 0.f;
+//
+// 	if (bWasLifting)
+// 	{
+// 		EndAirLift(false);
+// 		FallGracefullyWithVelocityChanger();
+// 		EvaluateAirWalkApexRNG();
+//
+// 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB released -> end lift"));
+// 		return;
+// 	}
+//
+// 	if (HeldTime < HoldThreshold)
+// 	{
+// 		PerformAirWalkTap();
+// 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB tap -> AirWalk"));
+// 	}
+// }
+//
+// void ALGSCoreJan12026Character::PerformAirWalkTap()
+// {
+// 	if (bIsCrouched)
+// 	{
+// 		UnCrouch();
+// 	}
+//
+// 	bSprintHeld = false;
+// 	UpdateSprintState();
+//
+// 	const bool bIsFallingNow = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
+// 	const float UseImpulse = bIsFallingNow ? TapAirWalkImpulseAir : TapAirWalkImpulseGround;
+//
+// 	LaunchCharacter(FVector(0.f, 0.f, UseImpulse), false, true);
+//
+// 	AirWalkState = EAirWalkState::TapRise;
+// 	bApexRollConsumed = false;
+//
+// 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] Tap impulse=%.1f falling=%d"),
+// 		UseImpulse, bIsFallingNow ? 1 : 0);
+// }
+//
+// void ALGSCoreJan12026Character::UpdateAirWalk(float DeltaSeconds)
+// {
+// 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+// 	if (!MoveComp) return;
+//
+// 	if (bAirWalkHeld && !bAirLiftActive)
+// 	{
+// 		AirWalkHoldTime += DeltaSeconds;
+//
+// 		if (AirWalkHoldTime >= HoldThreshold)
+// 		{
+// 			BeginAirLift();
+// 		}
+// 	}
+//
+// 	if (bAirLiftActive)
+// 	{
+// 		if (AirWalkEnergyCurrent <= 0.f)
+// 		{
+// 			EndAirLift(true);
+// 			FallGracefullyWithVelocityChanger();
+// 			EvaluateAirWalkApexRNG();
+// 			return;
+// 		}
+//
+// 		AirWalkEnergyCurrent = FMath::Max(0.f, AirWalkEnergyCurrent - LiftEnergyDrainPerSecond * DeltaSeconds);
+//
+// 		FVector V = MoveComp->Velocity;
+// 		V.Z = FMath::Min(V.Z + (LiftAccelerationZ * DeltaSeconds), LiftMaxUpVelocity);
+// 		MoveComp->Velocity = V;
+//
+// 		// Slightly softer gravity during lift
+// 		MoveComp->GravityScale = LiftGravityScale;
+// 	}
+//
+// 	// Apex detection for tap-rise
+// 	if (!bAirLiftActive && !bApexRollConsumed && MoveComp->IsFalling())
+// 	{
+// 		const float AbsZ = FMath::Abs(MoveComp->Velocity.Z);
+// 		if (AbsZ <= ApexVelocityThreshold)
+// 		{
+// 			EvaluateAirWalkApexRNG();
+// 		}
+// 	}
+// }
+//
+// void ALGSCoreJan12026Character::BeginAirLift()
+// {
+// 	if (bAirLiftActive) return;
+//
+// 	if (bIsCrouched)
+// 	{
+// 		UnCrouch();
+// 	}
+//
+// 	bSprintHeld = false;
+// 	UpdateSprintState();
+//
+// 	bAirLiftActive = true;
+// 	AirWalkState = EAirWalkState::Lift;
+//
+// 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+// 	{
+// 		MoveComp->GravityScale = LiftGravityScale;
+// 	}
+//
+// 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] BeginAirLift energy=%.1f"), AirWalkEnergyCurrent);
+// }
+//
+// void ALGSCoreJan12026Character::EndAirLift(bool bFromEnergyDepletion)
+// {
+// 	if (!bAirLiftActive) return;
+//
+// 	bAirLiftActive = false;
+// 	AirWalkState = EAirWalkState::GracefulFall;
+//
+// 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+// 	{
+// 		MoveComp->GravityScale = GracefulFallGravityScale;
+// 	}
+//
+// 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] EndAirLift depleted=%d energy=%.1f"),
+// 		bFromEnergyDepletion ? 1 : 0,
+// 		AirWalkEnergyCurrent);
+// }
+//
+// void ALGSCoreJan12026Character::FallGracefullyWithVelocityChanger()
+// {
+// 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+// 	if (!MoveComp) return;
+//
+// 	FVector V = MoveComp->Velocity;
+//
+// 	// soften harsh downward snap
+// 	if (V.Z < -600.f)
+// 	{
+// 		V.Z = -600.f;
+// 	}
+//
+// 	MoveComp->Velocity = V;
+// 	MoveComp->GravityScale = GracefulFallGravityScale;
+//
+// 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] Graceful fall engaged velZ=%.1f"), V.Z);
+// }
+// void ALGSCoreJan12026Character::EvaluateAirWalkApexRNG()
+// {
+// 	if (bApexRollConsumed) return;
+// 	bApexRollConsumed = true;
+//
+// 	const float Roll = FMath::FRand();
+//
+// 	if (Roll <= GodAirBoostChance)
+// 	{
+// 		bGodAirBoostAvailable = true;
+//
+// 		LaunchCharacter(FVector(0.f, 0.f, GodAirBoostImpulse), false, true);
+//
+// 		if (UWorld* World = GetWorld())
+// 		{
+// 			World->GetTimerManager().ClearTimer(Timer_GodAirBoostReset);
+// 			World->GetTimerManager().SetTimer(
+// 				Timer_GodAirBoostReset,
+// 				this,
+// 				&ALGSCoreJan12026Character::ResetGodAirBoost,
+// 				0.35f,
+// 				false
+// 			);
+// 		}
+//
+// 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] GOD BOOST! roll=%.3f"), Roll);
+// 	}
+// 	else
+// 	{
+// 		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] No god boost. roll=%.3f"), Roll);
+// 	}
+// }
+//
+// void ALGSCoreJan12026Character::ResetGodAirBoost()
+// {
+// 	bGodAirBoostAvailable = false;
+// }
+//
+//
+// //end 3_27
+
+bool ALGSCoreJan12026Character::IsAirWalkActive() const
 {
-	Super::Tick(DeltaSeconds);
-
-	UpdateAirWalk(DeltaSeconds);
+	return AirWalkComp ? AirWalkComp->IsAirWalkActive() : false;
 }
-
-void ALGSCoreJan12026Character::OnAirWalkStarted()
-{
-	if (!bHasAirWalkStrand)
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] No AirWalk strand"));
-		return;
-	}
-
-	bAirWalkHeld = true;
-	AirWalkHoldTime = 0.f;
-	bApexRollConsumed = false;
-
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB started"));
-}
-
-void ALGSCoreJan12026Character::OnAirWalkReleased()
-{
-	if (!bHasAirWalkStrand)
-	{
-		return;
-	}
-
-	const bool bWasLifting = bAirLiftActive;
-	const float HeldTime = AirWalkHoldTime;
-
-	bAirWalkHeld = false;
-	AirWalkHoldTime = 0.f;
-
-	if (bWasLifting)
-	{
-		EndAirLift(false);
-		FallGracefullyWithVelocityChanger();
-		EvaluateAirWalkApexRNG();
-
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB released -> end lift"));
-		return;
-	}
-
-	if (HeldTime < HoldThreshold)
-	{
-		PerformAirWalkTap();
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] RMB tap -> AirWalk"));
-	}
-}
-
-void ALGSCoreJan12026Character::PerformAirWalkTap()
-{
-	if (bIsCrouched)
-	{
-		UnCrouch();
-	}
-
-	bSprintHeld = false;
-	UpdateSprintState();
-
-	const bool bIsFallingNow = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
-	const float UseImpulse = bIsFallingNow ? TapAirWalkImpulseAir : TapAirWalkImpulseGround;
-
-	LaunchCharacter(FVector(0.f, 0.f, UseImpulse), false, true);
-
-	AirWalkState = EAirWalkState::TapRise;
-	bApexRollConsumed = false;
-
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] Tap impulse=%.1f falling=%d"),
-		UseImpulse, bIsFallingNow ? 1 : 0);
-}
-
-void ALGSCoreJan12026Character::UpdateAirWalk(float DeltaSeconds)
-{
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	if (!MoveComp) return;
-
-	if (bAirWalkHeld && !bAirLiftActive)
-	{
-		AirWalkHoldTime += DeltaSeconds;
-
-		if (AirWalkHoldTime >= HoldThreshold)
-		{
-			BeginAirLift();
-		}
-	}
-
-	if (bAirLiftActive)
-	{
-		if (AirWalkEnergyCurrent <= 0.f)
-		{
-			EndAirLift(true);
-			FallGracefullyWithVelocityChanger();
-			EvaluateAirWalkApexRNG();
-			return;
-		}
-
-		AirWalkEnergyCurrent = FMath::Max(0.f, AirWalkEnergyCurrent - LiftEnergyDrainPerSecond * DeltaSeconds);
-
-		FVector V = MoveComp->Velocity;
-		V.Z = FMath::Min(V.Z + (LiftAccelerationZ * DeltaSeconds), LiftMaxUpVelocity);
-		MoveComp->Velocity = V;
-
-		// Slightly softer gravity during lift
-		MoveComp->GravityScale = LiftGravityScale;
-	}
-
-	// Apex detection for tap-rise
-	if (!bAirLiftActive && !bApexRollConsumed && MoveComp->IsFalling())
-	{
-		const float AbsZ = FMath::Abs(MoveComp->Velocity.Z);
-		if (AbsZ <= ApexVelocityThreshold)
-		{
-			EvaluateAirWalkApexRNG();
-		}
-	}
-}
-
-void ALGSCoreJan12026Character::BeginAirLift()
-{
-	if (bAirLiftActive) return;
-
-	if (bIsCrouched)
-	{
-		UnCrouch();
-	}
-
-	bSprintHeld = false;
-	UpdateSprintState();
-
-	bAirLiftActive = true;
-	AirWalkState = EAirWalkState::Lift;
-
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
-	{
-		MoveComp->GravityScale = LiftGravityScale;
-	}
-
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] BeginAirLift energy=%.1f"), AirWalkEnergyCurrent);
-}
-
-void ALGSCoreJan12026Character::EndAirLift(bool bFromEnergyDepletion)
-{
-	if (!bAirLiftActive) return;
-
-	bAirLiftActive = false;
-	AirWalkState = EAirWalkState::GracefulFall;
-
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
-	{
-		MoveComp->GravityScale = GracefulFallGravityScale;
-	}
-
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] EndAirLift depleted=%d energy=%.1f"),
-		bFromEnergyDepletion ? 1 : 0,
-		AirWalkEnergyCurrent);
-}
-
-void ALGSCoreJan12026Character::FallGracefullyWithVelocityChanger()
-{
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	if (!MoveComp) return;
-
-	FVector V = MoveComp->Velocity;
-
-	// soften harsh downward snap
-	if (V.Z < -600.f)
-	{
-		V.Z = -600.f;
-	}
-
-	MoveComp->Velocity = V;
-	MoveComp->GravityScale = GracefulFallGravityScale;
-
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] Graceful fall engaged velZ=%.1f"), V.Z);
-}
-void ALGSCoreJan12026Character::EvaluateAirWalkApexRNG()
-{
-	if (bApexRollConsumed) return;
-	bApexRollConsumed = true;
-
-	const float Roll = FMath::FRand();
-
-	if (Roll <= GodAirBoostChance)
-	{
-		bGodAirBoostAvailable = true;
-
-		LaunchCharacter(FVector(0.f, 0.f, GodAirBoostImpulse), false, true);
-
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().ClearTimer(Timer_GodAirBoostReset);
-			World->GetTimerManager().SetTimer(
-				Timer_GodAirBoostReset,
-				this,
-				&ALGSCoreJan12026Character::ResetGodAirBoost,
-				0.35f,
-				false
-			);
-		}
-
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] GOD BOOST! roll=%.3f"), Roll);
-	}
-	else
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] No god boost. roll=%.3f"), Roll);
-	}
-}
-
-void ALGSCoreJan12026Character::ResetGodAirBoost()
-{
-	bGodAirBoostAvailable = false;
-}
-
-
-//end 3_27
 
 
 //1_4_26
@@ -712,96 +723,96 @@ void ALGSCoreJan12026Character::HandleCombatModeChanged(ECombatMode NewMode)
 {
 	//apparently this does something:
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[CHAR] HandleCombatModeChanged: %s"),
-	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
+		NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
 	ApplyWeaponVisualsForMode(NewMode);
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MODE] HandleCombatModeChanged fired: %s"),
-	NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
-	
+		NewMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"));
+
 }
 
 //LGS CombatCore VERY Tricky section: add debugs if necessary but for now, compiles 
 //2_53pto1p
 void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 {
-    USkeletalMeshComponent* Arms = GetMesh1P();
-    if (!Arms)
-    {
-        UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Mesh1P missing - cannot attach 1P visuals"));
-        return;
-    }
+	USkeletalMeshComponent* Arms = GetMesh1P();
+	if (!Arms)
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] Mesh1P missing - cannot attach 1P visuals"));
+		return;
+	}
 
-    auto ResolveSocket = [&](ULGSWeaponDataAsset* DA) -> FName
-    {
-        if (DA && DA->AttachSocketOverride != NAME_None)
-        {
-            return DA->AttachSocketOverride;
-        }
-        return WeaponSocketName; // WeaponSocket_R
-    };
+	auto ResolveSocket = [&](ULGSWeaponDataAsset* DA) -> FName
+		{
+			if (DA && DA->AttachSocketOverride != NAME_None)
+			{
+				return DA->AttachSocketOverride;
+			}
+			return WeaponSocketName; // WeaponSocket_R
+		};
 
-    auto AttachAndApply = [&](UStaticMeshComponent* Visual, ULGSWeaponDataAsset* DA, const TCHAR* Label)
-    {
-        if (!Visual)
-        {
-            UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] %s visual is NULL"), Label);
-            return;
-        }
+	auto AttachAndApply = [&](UStaticMeshComponent* Visual, ULGSWeaponDataAsset* DA, const TCHAR* Label)
+		{
+			if (!Visual)
+			{
+				UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] %s visual is NULL"), Label);
+				return;
+			}
 
-        if (!DA)
-        {
-            UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] %s DataAsset is NULL"), Label);
-            Visual->SetStaticMesh(nullptr);
-            return;
-        }
+			if (!DA)
+			{
+				UE_LOG(LogTemplateCharacter, Warning, TEXT("[WEAPON] %s DataAsset is NULL"), Label);
+				Visual->SetStaticMesh(nullptr);
+				return;
+			}
 
-    	if (GEngine)
-    	{
-    		GEngine->AddOnScreenDebugMessage(
-				-1, 4.f, FColor::Yellow,
-				FString::Printf(TEXT("MELEE DA=%s  Mesh=%s"),
-					*GetNameSafe(MeleeWeaponData),
-					*GetNameSafe(MeleeWeaponData ? MeleeWeaponData->FP_StaticMesh : nullptr))
-			);
-    	}
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(
+					-1, 4.f, FColor::Yellow,
+					FString::Printf(TEXT("MELEE DA=%s  Mesh=%s"),
+						*GetNameSafe(MeleeWeaponData),
+						*GetNameSafe(MeleeWeaponData ? MeleeWeaponData->FP_StaticMesh : nullptr))
+				);
+			}
 
 
-        const FName Socket = ResolveSocket(DA);
-        if (!Arms->DoesSocketExist(Socket))
-        {
-            UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] %s socket missing: %s on %s"),
-                Label, *Socket.ToString(), *GetNameSafe(Arms));
-            return;
-        }
+			const FName Socket = ResolveSocket(DA);
+			if (!Arms->DoesSocketExist(Socket))
+			{
+				UE_LOG(LogTemplateCharacter, Error, TEXT("[WEAPON] %s socket missing: %s on %s"),
+					Label, *Socket.ToString(), *GetNameSafe(Arms));
+				return;
+			}
 
-        Visual->AttachToComponent(Arms, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
+			Visual->AttachToComponent(Arms, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 
-        Visual->SetStaticMesh(DA->FP_StaticMesh);
-        Visual->SetRelativeTransform(DA->AttachOffset);
+			Visual->SetStaticMesh(DA->FP_StaticMesh);
+			Visual->SetRelativeTransform(DA->AttachOffset);
 
-        UE_LOG(LogTemplateCharacter, Warning,
-            TEXT("[WEAPON] %s attached to Mesh=%s Socket=%s MeshAsset=%s Hidden=%d"),
-            Label,
-            *GetNameSafe(Arms),
-            *Socket.ToString(),
-            *GetNameSafe(DA->FP_StaticMesh),
-            Visual->bHiddenInGame ? 1 : 0);
-    };
+			UE_LOG(LogTemplateCharacter, Warning,
+				TEXT("[WEAPON] %s attached to Mesh=%s Socket=%s MeshAsset=%s Hidden=%d"),
+				Label,
+				*GetNameSafe(Arms),
+				*Socket.ToString(),
+				*GetNameSafe(DA->FP_StaticMesh),
+				Visual->bHiddenInGame ? 1 : 0);
+		};
 
-    AttachAndApply(RangedWeaponVisual, RangedWeaponData, TEXT("Ranged"));
-    AttachAndApply(MeleeWeaponVisual,  MeleeWeaponData,  TEXT("Melee"));
+	AttachAndApply(RangedWeaponVisual, RangedWeaponData, TEXT("Ranged"));
+	AttachAndApply(MeleeWeaponVisual, MeleeWeaponData, TEXT("Melee"));
 
-    const bool bMelee = (NewMode == ECombatMode::Melee);
+	const bool bMelee = (NewMode == ECombatMode::Melee);
 
-    if (MeleeWeaponVisual)
-    {
-        MeleeWeaponVisual->SetHiddenInGame(!bMelee, true);
-        MeleeWeaponVisual->SetVisibility(bMelee, true);
-    }
-    if (RangedWeaponVisual)
-    {
-        RangedWeaponVisual->SetHiddenInGame(bMelee, true);
-        RangedWeaponVisual->SetVisibility(!bMelee, true);
-    }
+	if (MeleeWeaponVisual)
+	{
+		MeleeWeaponVisual->SetHiddenInGame(!bMelee, true);
+		MeleeWeaponVisual->SetVisibility(bMelee, true);
+	}
+	if (RangedWeaponVisual)
+	{
+		RangedWeaponVisual->SetHiddenInGame(bMelee, true);
+		RangedWeaponVisual->SetVisibility(!bMelee, true);
+	}
 }
 
 
@@ -826,25 +837,39 @@ void ALGSCoreJan12026Character::OnToggleShieldPressed()
 
 //end 1_23_26
 
+//new 4_14_AirWalk
+void ALGSCoreJan12026Character::OnAirWalkStarted()
+{
+	if (AirWalkComp)
+	{
+		AirWalkComp->HandlePress();
+	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("[AIR] AirWalkComp is NULL"));
+	}
+}
+
+void ALGSCoreJan12026Character::OnAirWalkReleased()
+{
+	if (AirWalkComp)
+	{
+		AirWalkComp->HandleRelease();
+	}
+}
+//end 4_14 
+
 //HyperDrive 1_27_26:  Careful adding HyperRail
 //new 3_27 AirWalk
+//new HyperDrive 1_27_26:  Careful adding HyperRail
 void ALGSCoreJan12026Character::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
 
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	if (AirWalkComp)
 	{
-		MoveComp->GravityScale = NormalGravityScale;
+		AirWalkComp->HandleLanded(Hit);
 	}
-
-	bAirLiftActive = false;
-	bAirWalkHeld = false;
-	AirWalkHoldTime = 0.f;
-	bApexRollConsumed = false;
-	AirWalkState = EAirWalkState::None;
-
-	// Optional light regen on landing
-	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
 
 	if (HyperDriveComp)
 	{
