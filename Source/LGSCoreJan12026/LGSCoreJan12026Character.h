@@ -91,7 +91,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	virtual void Landed(const FHitResult& Hit) override;
 	//end 1_27_26
 	
-	//New 3_12_Sprint 
+	//New 3_12_Sprint  
 	/** Sprint Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess="true"))
 	UInputAction* SprintAction;
