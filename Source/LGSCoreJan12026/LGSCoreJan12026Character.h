@@ -9,6 +9,7 @@
 //end 1_3_26
 //1/4/26
 #include "LGSWeaponDataAsset.h"
+#include "InputMappingContext.h"
 //end 1_4_26
 //1_23_26
 class UInputAction;
