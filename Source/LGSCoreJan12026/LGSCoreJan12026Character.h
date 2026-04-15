@@ -137,7 +137,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
 	//new combat mode 1_30
-	//seems to be already existing in code see 152 & 155
+	//seems to be already existing in code see 152 & 155 
 	// UFUNCTION()     
 	// void HandleCombatModeChanged(ECombatMode NewMode);
 	//
