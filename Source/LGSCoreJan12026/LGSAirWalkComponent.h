@@ -6,6 +6,9 @@
 #include "LGSAirWalkComponent.generated.h"
 
 class ACharacter;
+//new 4_15 Airwalk Updates
+class UNiagaraSystem;
+//end 4_15
 class UCharacterMovementComponent;
 
 UENUM(BlueprintType)
@@ -52,6 +55,54 @@ public:
 	UFUNCTION()
 	void HandleLanded(const FHitResult& Hit);
 
+	//new 4_15 airwalk Updates
+	void EnterAirWalk();
+	void ConsumeDistortion(const FVector& InputDir);
+	void TriggerWobble();
+	FVector GetInputDir() const;
+	ACharacter* GetOwnerCharacter() const { return OwnerCharacter; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
+	int32 MaxDistortions = 3;
+
+	UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
+	int32 DistortionsRemaining = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
+	bool bAirWalkActive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
+	float InitialUpImpulse = 1400.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
+	float DistortionUpImpulse = 850.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
+	float HorizontalImpulse = 750.f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Movement", meta=(AllowPrivateAccess="true"))
+	FVector2D LastMoveInput = FVector2D::ZeroVector;
+
+	UFUNCTION(BlueprintPure, Category="Movement")
+	FVector2D GetLastMoveInput() const { return LastMoveInput; }
+
+	UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk|Landing")
+	bool bLandingChargeArmed = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Landing")
+	float LandingChargeSearchRadius = 900.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Landing")
+	bool bFaceNearestTargetOnLanding = true;
+
+	
+	
+	 UFUNCTION(BlueprintCallable, Category="Movement|AirWalk")
+	 void TriggerSpaceTimeUpheaval();
+
+	//end 4_15
+	
+
 protected:
 	void BeginAirLift();
 	void EndAirLift(bool bFromEnergyDepletion);
@@ -63,8 +114,20 @@ protected:
 
 	ACharacter* OwnerCharacter = nullptr;
 	UCharacterMovementComponent* CachedMoveComp = nullptr;
+	
 
 protected:
+
+	//new 4_15 important directional dynamics for standing still airwalk
+	void ApplyAirWalkDirectionalFeel(float DeltaSeconds);
+	
+	//below already defined but in the right scope?
+	// FVector GetInputDir() const;
+	//below already defined but in the right scope?
+	// ACharacter* GetOwnerCharacter() const { return OwnerCharacter; }
+	//end 4_14
+
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|AirWalk")
 	bool bHasAirWalkStrand = true;
 
@@ -127,6 +190,59 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|AirWalk")
 	float LiftGravityScale = 0.35f;
+
+	//new 4_15 Airwalk Updates
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Upheaval")
+	float SpaceTimeUpheavalImpulse = 1600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Upheaval")
+	float SpaceTimeUpheavalMaxZOverride = 2200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Upheaval")
+	bool bSpaceTimeUpheavalActive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|FX")
+	UNiagaraSystem* AirWalkStartFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|FX")
+	UNiagaraSystem* AirWalkLiftFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|FX")
+	UNiagaraSystem* AirWalkLandingChargeFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|FX")
+	UNiagaraSystem* SpaceTimeUpheavalFX = nullptr;
+
+	//new 4_15 Airwalk Updates Feeling like walking on air
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Feel")
+	float RisingDirectionalPush = 220.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Feel")
+	float FallingDirectionalPush = 320.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Feel")
+	float RisingCounterDrag = 0.92f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Feel")
+	float FallingCounterDrag = 0.88f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Feel")
+	float MaxAirWalkHorizontalSpeed = 900.f;
+	//end 4_15
+	
+
+	//new 4_15_Airwalk Charging dynamics for second pass
+	// UFUNCTION(BlueprintCallable, Category="Movement|AirWalk|Landing")
+	// void ArmLandingCharge();
+	
+	//  this below causes and error, already defined and conflicts
+	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk|Landing")
+	// bool bLandingChargeArmed = false;
+	//
+	// void ConsumeLandingCharge(const FHitResult& Hit);
+	// AActor* FindNearestLandingTarget(float Radius) const;
+	
+	//end 4_14
 
 	FTimerHandle Timer_GodAirBoostReset;
 };

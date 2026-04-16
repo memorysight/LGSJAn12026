@@ -3,6 +3,10 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
+//new 4_15 AirwalkUpdates
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+//end 4_15
 #include "TimerManager.h"
 #include "LGSCoreJan12026Character.h"
 
@@ -10,6 +14,7 @@ ULGSAirWalkComponent::ULGSAirWalkComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
+
 
 void ULGSAirWalkComponent::BeginPlay()
 {
@@ -42,6 +47,165 @@ void ULGSAirWalkComponent::HandlePress()
 	AirWalkHoldTime = 0.f;
 	bApexRollConsumed = false;
 }
+
+//new 4_15 airwalk
+void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
+{
+	if (!OwnerCharacter || !CachedMoveComp)
+	{
+		return;
+	}
+
+	FVector V = CachedMoveComp->Velocity;
+
+	// Hard-set or boost upward speed
+	V.Z = FMath::Max(V.Z + SpaceTimeUpheavalImpulse, SpaceTimeUpheavalMaxZOverride);
+	CachedMoveComp->Velocity = V;
+
+	// Optional: lighter gravity during the burst
+	CachedMoveComp->GravityScale = LiftGravityScale;
+
+	bSpaceTimeUpheavalActive = true;
+
+	if (SpaceTimeUpheavalFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			SpaceTimeUpheavalFX,
+			OwnerCharacter->GetRootComponent(),
+			NAME_None,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			true
+		);
+	}
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			0.75f,
+			FColor::Cyan,
+			TEXT("[AIR] SPACE-TIME UPHEAVAL")
+		);
+	}
+}
+
+void ULGSAirWalkComponent::ConsumeDistortion(const FVector& InputDir)
+{
+	if (!OwnerCharacter || !CachedMoveComp || DistortionsRemaining <= 0)
+	{
+		return;
+	}
+
+	const bool bIsInitial = (DistortionsRemaining == MaxDistortions);
+	const float UpImpulse = bIsInitial ? InitialUpImpulse : DistortionUpImpulse;
+
+	FVector Launch = FVector(0.f, 0.f, UpImpulse);
+
+	if (!InputDir.IsNearlyZero())
+	{
+		Launch += InputDir * HorizontalImpulse;
+	}
+
+	OwnerCharacter->LaunchCharacter(Launch, true, true);
+
+	DistortionsRemaining--;
+	TriggerWobble();
+}
+
+void ULGSAirWalkComponent::ApplyAirWalkDirectionalFeel(float DeltaSeconds)
+{
+	if (!OwnerCharacter || !CachedMoveComp)
+	{
+		return;
+	}
+
+	const FVector InputDir = GetInputDir();
+	if (InputDir.IsNearlyZero())
+	{
+		return;
+	}
+
+	FVector Vel = CachedMoveComp->Velocity;
+	const bool bRising = Vel.Z > 0.f;
+
+	const float PushStrength = bRising ? RisingDirectionalPush : FallingDirectionalPush;
+	const float CounterDrag = bRising ? RisingCounterDrag : FallingCounterDrag;
+
+	// Quick horizontal push in input direction
+	Vel += InputDir * PushStrength * DeltaSeconds;
+
+	// Slight resistance / pushback so it feels like fighting unstable gravity
+	Vel.X *= CounterDrag;
+	Vel.Y *= CounterDrag;
+
+	// Clamp horizontal speed so it stays controlled
+	FVector HorizontalVel(Vel.X, Vel.Y, 0.f);
+	const float HorizontalSpeed = HorizontalVel.Size();
+
+	if (HorizontalSpeed > MaxAirWalkHorizontalSpeed)
+	{
+		const FVector Clamped = HorizontalVel.GetSafeNormal() * MaxAirWalkHorizontalSpeed;
+		Vel.X = Clamped.X;
+		Vel.Y = Clamped.Y;
+	}
+
+	CachedMoveComp->Velocity = Vel;
+}
+
+
+
+
+
+
+FVector ULGSAirWalkComponent::GetInputDir() const
+{
+	const ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter);
+	if (!LGSChar)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const FVector2D MoveInput = LGSChar->GetLastMoveInput();
+	if (MoveInput.IsNearlyZero())
+	{
+		return FVector::ZeroVector;
+	}
+
+	const FRotator ControlRot = LGSChar->GetControlRotation();
+	const FRotator YawOnlyRot(0.f, ControlRot.Yaw, 0.f);
+
+	const FVector Fwd = FRotationMatrix(YawOnlyRot).GetUnitAxis(EAxis::X);
+	const FVector Right = FRotationMatrix(YawOnlyRot).GetUnitAxis(EAxis::Y);
+
+	FVector Dir = (Fwd * MoveInput.Y) + (Right * MoveInput.X);
+	Dir.Z = 0.f;
+
+	return Dir.GetClampedToMaxSize(1.f);
+}
+
+
+
+void ULGSAirWalkComponent::EnterAirWalk()
+{
+	bAirWalkActive = true;
+	DistortionsRemaining = MaxDistortions;
+}
+
+void ULGSAirWalkComponent::TriggerWobble()
+{
+	auto* Char = GetOwnerCharacter();
+	if (!Char) return;
+
+	FVector Vel = Char->GetVelocity();
+	Vel.Z *= 0.85f;
+
+	Char->GetCharacterMovement()->Velocity = Vel;
+}
+
+
+//end 4_15
 
 void ULGSAirWalkComponent::HandleRelease()
 {
@@ -135,6 +299,13 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 			EvaluateAirWalkApexRNG();
 		}
 	}
+
+	//consider this
+	// if (bAirLiftActive || AirWalkState == EAirWalkState::TapRise || AirWalkState == EAirWalkState::GracefulFall)
+	// {
+	// 	ApplyAirWalkDirectionalFeel(DeltaSeconds);
+	// }
+	//
 }
 
 void ULGSAirWalkComponent::BeginAirLift()
@@ -210,13 +381,7 @@ void ULGSAirWalkComponent::EvaluateAirWalkApexRNG()
 	}
 }
 
-void ALGSCoreJan12026Character::CancelSprintForAirWalk()
-{
-	bSprintHeld = false;
-	UpdateSprintState();
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Sprint canceled for AirWalk"));
-}
 
 void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
 {
@@ -235,7 +400,174 @@ void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
 	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
 }
 
+// Or Consider This Version
+// void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
+// {
+// 	if (bLandingChargeArmed)
+// 	{
+// 		ConsumeLandingCharge(Hit);
+// 	}
+//
+// 	if (CachedMoveComp)
+// 	{
+// 		CachedMoveComp->GravityScale = NormalGravityScale;
+// 	}
+//
+// 	bAirLiftActive = false;
+// 	bAirWalkHeld = false;
+// 	AirWalkHoldTime = 0.f;
+// 	bApexRollConsumed = false;
+// 	AirWalkState = EAirWalkState::None;
+// 	bGodAirBoostAvailable = false;
+// 	bAirWalkActive = false;
+// 	DistortionsRemaining = 0;
+//
+// 	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
+// }
+
+
+//isn't this part of the original Apex which we have to delete?
 void ULGSAirWalkComponent::ResetGodAirBoost()
 {
 	bGodAirBoostAvailable = false;
 }
+
+
+// my new method :)
+// void ULGSAirWalkComponent::engangeRGSSYstemToDeterminAirwalDistortions()
+// {
+// 	initial burst always happens
+// 	extra distortions vary
+//
+// 	if (Roll <= GodChance)
+// 	{
+// 		DistortionsRemaining = 2; // total feel = entry + 2 extras
+// 	}
+// 	else if (Roll <= GodChance + AverageChance)
+// 	{
+// 		DistortionsRemaining = 1; // entry + 1 extra
+// 	}
+// 	else
+// 	{
+// 		DistortionsRemaining = 0; // entry only
+// 	}
+// }
+//end 
+
+
+//for super crazy: OwnerCharacter->LaunchCharacter(FVector(0.f, 0.f, SpaceTimeUpheavalImpulse), false, true);
+//
+//even crazier protects stronger upward momentum
+//  V.Z = FMath::Max(V.Z, SpaceTimeUpheavalVerticalVelocity);
+//
+
+//for mild version
+//  FVector V = CachedMoveComp->Velocity;
+//  V.Z = SpaceTimeUpheavalMaxZOverride;
+//  CachedMoveComp->Velocity = V;
+//
+
+
+///////////////////////Charged Melee Section Phase2/////////////
+
+//4_14_Charged Melee Section for the next
+//
+// void ULGSAirWalkComponent::ArmLandingCharge()
+// {
+// 	bLandingChargeArmed = true;
+//
+// 	if (LandingChargeArmedFX && OwnerCharacter)
+// 	{
+// 		UNiagaraFunctionLibrary::SpawnSystemAttached(
+// 			LandingChargeArmedFX,
+// 			OwnerCharacter->GetRootComponent(),
+// 			NAME_None,
+// 			FVector::ZeroVector,
+// 			FRotator::ZeroRotator,
+// 			EAttachLocation::KeepRelativeOffset,
+// 			true
+// 		);
+// 	}
+//
+// 	if (GEngine)
+// 	{
+// 		GEngine->AddOnScreenDebugMessage(
+// 			-1,
+// 			0.5f,
+// 			FColor::Red,
+// 			TEXT("[AIR] CHARGE ARMED")
+// 		);
+// 	}
+// }
+
+// AActor* ULGSAirWalkComponent::FindNearestLandingTarget(float Radius) const
+// {
+// 	if (!OwnerCharacter || !GetWorld())
+// 	{
+// 		return nullptr;
+// 	}
+//
+// 	AActor* BestTarget = nullptr;
+// 	float BestDistSq = Radius * Radius;
+//
+// 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+// 	{
+// 		AActor* Candidate = *It;
+// 		if (!Candidate || Candidate == OwnerCharacter)
+// 		{
+// 			continue;
+// 		}
+//
+// 		// Replace this with your actual enemy check
+// 		if (!Candidate->ActorHasTag(TEXT("AI")))
+// 		{
+// 			continue;
+// 		}
+//
+// 		const float DistSq = FVector::DistSquared(
+// 			OwnerCharacter->GetActorLocation(),
+// 			Candidate->GetActorLocation()
+// 		);
+//
+// 		if (DistSq < BestDistSq)
+// 		{
+// 			BestDistSq = DistSq;
+// 			BestTarget = Candidate;
+// 		}
+// 	}
+//
+// 	return BestTarget;
+// }
+//
+// void ULGSAirWalkComponent::ConsumeLandingCharge(const FHitResult& Hit)
+// {
+// 	bLandingChargeArmed = false;
+//
+// 	if (!OwnerCharacter)
+// 	{
+// 		return;
+// 	}
+//
+// 	AActor* Target = FindNearestLandingTarget(LandingChargeSearchRadius);
+//
+// 	if (bFaceNearestTargetOnLanding && Target)
+// 	{
+// 		FVector ToTarget = Target->GetActorLocation() - OwnerCharacter->GetActorLocation();
+// 		ToTarget.Z = 0.f;
+//
+// 		if (!ToTarget.IsNearlyZero())
+// 		{
+// 			const FRotator FaceRot = ToTarget.Rotation();
+// 			OwnerCharacter->SetActorRotation(FaceRot);
+// 		}
+// 	}
+//
+// 	if (ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter))
+// 	{
+// 		if (ULGSCombatCoreComponent* Combat = LGSChar->FindComponentByClass<ULGSCombatCoreComponent>())
+// 		{
+// 			// First pass: special landing burst function you add in CombatCore
+// 			Combat->ExecuteLandingChargeBurst(Target, Hit.ImpactPoint);
+// 		}
+// 	}
+// }

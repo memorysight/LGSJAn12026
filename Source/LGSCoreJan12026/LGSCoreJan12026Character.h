@@ -283,7 +283,7 @@ public:
 	UStaticMeshComponent* GetMeleeWeaponVisual() const { return MeleeWeaponVisual; }
 	//end 2_23
 
-	//new 4_14_AirWalk
+	//4_14_AirWalk
 	// Small helper so AirWalk component does not touch sprint internals
 	UFUNCTION(BlueprintCallable, Category = "Movement|Sprint")
 	void CancelSprintForAirWalk();
@@ -291,6 +291,14 @@ public:
 	// Optional convenience passthrough
 	UFUNCTION(BlueprintPure, Category = "Movement|AirWalk")
 	bool IsAirWalkActive() const;
+
+	//new 4_15 Airwalk Updated
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	FVector2D GetLastMoveInput() const { return LastMoveInput; }
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = "true"))
+	FVector2D LastMoveInput = FVector2D::ZeroVector;
+	//end 4_14
 
 protected:
 	/** Called for movement input */
