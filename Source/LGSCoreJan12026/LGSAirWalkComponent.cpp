@@ -48,7 +48,7 @@ void ULGSAirWalkComponent::HandlePress()
 	bApexRollConsumed = false;
 }
 
-//new 4_15 airwalk
+//new 4_17 airwalk More Pronounced Upward Velocity
 void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
 {
 	if (!OwnerCharacter || !CachedMoveComp)
@@ -58,14 +58,14 @@ void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
 
 	FVector V = CachedMoveComp->Velocity;
 
-	// Hard-set or boost upward speed
-	V.Z = FMath::Max(V.Z + SpaceTimeUpheavalImpulse, SpaceTimeUpheavalMaxZOverride);
+	// Deterministic violent ascent
+	V.Z = SpaceTimeUpheavalMaxZOverride;
 	CachedMoveComp->Velocity = V;
-
-	// Optional: lighter gravity during the burst
-	CachedMoveComp->GravityScale = LiftGravityScale;
+	CachedMoveComp->GravityScale = SpaceTimeUpheavalGravityScale;
 
 	bSpaceTimeUpheavalActive = true;
+	bAirLiftActive = false;
+	AirWalkState = EAirWalkState::Lift;
 
 	if (SpaceTimeUpheavalFX)
 	{
@@ -86,7 +86,7 @@ void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
 			-1,
 			0.75f,
 			FColor::Cyan,
-			TEXT("[AIR] SPACE-TIME UPHEAVAL")
+			FString::Printf(TEXT("[AIR] SPACE-TIME UPHEAVAL Z=%.1f"), V.Z)
 		);
 	}
 }
@@ -156,9 +156,6 @@ void ULGSAirWalkComponent::ApplyAirWalkDirectionalFeel(float DeltaSeconds)
 
 
 
-
-
-
 FVector ULGSAirWalkComponent::GetInputDir() const
 {
 	const ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter);
@@ -185,12 +182,34 @@ FVector ULGSAirWalkComponent::GetInputDir() const
 	return Dir.GetClampedToMaxSize(1.f);
 }
 
-
-
 void ULGSAirWalkComponent::EnterAirWalk()
 {
+	if (bAirWalkActive)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				0.5f,
+				FColor::Yellow,
+				TEXT("[AIR] EnterAirWalk ignored - already active")
+			);
+		}
+		return;
+	}
+
 	bAirWalkActive = true;
 	DistortionsRemaining = MaxDistortions;
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			0.75f,
+			FColor::Green,
+			FString::Printf(TEXT("[AIR] EnterAirWalk distortions=%d"), DistortionsRemaining)
+		);
+	}
 }
 
 void ULGSAirWalkComponent::TriggerWobble()
@@ -224,7 +243,6 @@ void ULGSAirWalkComponent::HandleRelease()
 	{
 		EndAirLift(false);
 		FallGracefullyWithVelocityChanger();
-		EvaluateAirWalkApexRNG();
 		return;
 	}
 
@@ -279,7 +297,6 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 		{
 			EndAirLift(true);
 			FallGracefullyWithVelocityChanger();
-			EvaluateAirWalkApexRNG();
 			return;
 		}
 
@@ -291,14 +308,14 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 		CachedMoveComp->GravityScale = LiftGravityScale;
 	}
 
-	if (!bAirLiftActive && !bApexRollConsumed && CachedMoveComp->IsFalling())
-	{
-		const float AbsZ = FMath::Abs(CachedMoveComp->Velocity.Z);
-		if (AbsZ <= ApexVelocityThreshold)
-		{
-			EvaluateAirWalkApexRNG();
-		}
-	}
+	// if (!bAirLiftActive && !bApexRollConsumed && CachedMoveComp->IsFalling())
+	// {
+	// 	const float AbsZ = FMath::Abs(CachedMoveComp->Velocity.Z);
+	// 	if (AbsZ <= ApexVelocityThreshold)
+	// 	{
+	// 		EvaluateAirWalkApexRNG();
+	// 	}
+	// }
 
 	//consider this
 	// if (bAirLiftActive || AirWalkState == EAirWalkState::TapRise || AirWalkState == EAirWalkState::GracefulFall)
@@ -310,6 +327,11 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 
 void ULGSAirWalkComponent::BeginAirLift()
 {
+	if (bAirLiftActive || !OwnerCharacter || !CachedMoveComp)
+	{
+		return;
+	}
+
 	if (ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter))
 	{
 		LGSChar->UnCrouch();
@@ -385,6 +407,12 @@ void ULGSAirWalkComponent::EvaluateAirWalkApexRNG()
 
 void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
 {
+	// Phase 2 later:
+	// if (bLandingChargeArmed)
+	// {
+	// 	ConsumeLandingCharge(Hit);
+	// }
+
 	if (CachedMoveComp)
 	{
 		CachedMoveComp->GravityScale = NormalGravityScale;
@@ -393,9 +421,16 @@ void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
 	bAirLiftActive = false;
 	bAirWalkHeld = false;
 	AirWalkHoldTime = 0.f;
-	bApexRollConsumed = false;
 	AirWalkState = EAirWalkState::None;
+
+	// Distortion system reset
+	bAirWalkActive = false;
+	DistortionsRemaining = 0;
+
+	// Old apex RNG reset - remove entirely once that system is deleted
+	bApexRollConsumed = false;
 	bGodAirBoostAvailable = false;
+	bSpaceTimeUpheavalActive = false;
 
 	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
 }

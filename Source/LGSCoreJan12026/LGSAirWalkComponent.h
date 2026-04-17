@@ -95,8 +95,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Landing")
 	bool bFaceNearestTargetOnLanding = true;
 
-	
-	
+	//4_17 AW Upheaval More Pronounced
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Upheaval")
+	float SpaceTimeUpheavalGravityScale = 0.15f;
+	//end 4_17
 	 UFUNCTION(BlueprintCallable, Category="Movement|AirWalk")
 	 void TriggerSpaceTimeUpheaval();
 
