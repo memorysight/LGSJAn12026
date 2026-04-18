@@ -2,19 +2,14 @@
 
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Engine/World.h"
-//new 4_15 AirwalkUpdates
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
-//end 4_15
-#include "TimerManager.h"
 #include "LGSCoreJan12026Character.h"
 
 ULGSAirWalkComponent::ULGSAirWalkComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
-
 
 void ULGSAirWalkComponent::BeginPlay()
 {
@@ -45,61 +40,157 @@ void ULGSAirWalkComponent::HandlePress()
 
 	bAirWalkHeld = true;
 	AirWalkHoldTime = 0.f;
-	bApexRollConsumed = false;
 }
 
-//new 4_17 airwalk More Pronounced Upward Velocity
-void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
+void ULGSAirWalkComponent::HandleRelease()
 {
-	if (!OwnerCharacter || !CachedMoveComp)
+	if (!bHasAirWalkStrand || !OwnerCharacter || !CachedMoveComp)
 	{
 		return;
 	}
 
-	FVector V = CachedMoveComp->Velocity;
+	const bool bWasLifting = bAirLiftActive;
+	const float HeldTime = AirWalkHoldTime;
 
-	// Deterministic violent ascent
-	V.Z = SpaceTimeUpheavalMaxZOverride;
-	CachedMoveComp->Velocity = V;
-	CachedMoveComp->GravityScale = SpaceTimeUpheavalGravityScale;
+	bAirWalkHeld = false;
+	AirWalkHoldTime = 0.f;
 
-	bSpaceTimeUpheavalActive = true;
-	bAirLiftActive = false;
-	AirWalkState = EAirWalkState::Lift;
-
-	if (SpaceTimeUpheavalFX)
+	if (bWasLifting)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(
-			SpaceTimeUpheavalFX,
-			OwnerCharacter->GetRootComponent(),
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset,
-			true
-		);
+		EndAirLift(false);
+		FallGracefullyWithVelocityChanger();
+		return;
 	}
+
+	// Quick RMB = fast, snappy burst
+	if (HeldTime < HoldThreshold)
+	{
+		const FVector InputDir = GetInputDir();
+
+		// First entry into AirWalk chain
+		if (!bAirWalkActive)
+		{
+			EnterAirWalk();
+			ConsumeDistortion(InputDir);
+			AirWalkState = EAirWalkState::TapRise;
+			return;
+		}
+
+		// Later extra distortions
+		if (CanUseExtraDistortion())
+		{
+			ConsumeDistortion(InputDir);
+			AirWalkState = EAirWalkState::TapRise;
+			return;
+		}
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				0.5f,
+				FColor::Yellow,
+				TEXT("[AIR] Quick tap ignored - no extra distortions")
+			);
+		}
+	}
+}
+
+void ULGSAirWalkComponent::EnterAirWalk()
+{
+	if (bAirWalkActive)
+	{
+		return;
+	}
+
+	bAirWalkActive = true;
+	bEntryDistortionConsumed = false;
+	bDistortionRollResolved = false;
+	DistortionsRemaining = 0;
 
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
 			-1,
 			0.75f,
-			FColor::Cyan,
-			FString::Printf(TEXT("[AIR] SPACE-TIME UPHEAVAL Z=%.1f"), V.Z)
+			FColor::Green,
+			TEXT("[AIR] EnterAirWalk")
+		);
+	}
+}
+
+bool ULGSAirWalkComponent::CanUseExtraDistortion() const
+{
+	return bAirWalkActive && DistortionsRemaining > 0;
+}
+
+void ULGSAirWalkComponent::DetermineDistortionCountFromRoll()
+{
+	if (bDistortionRollResolved)
+	{
+		return;
+	}
+
+	bDistortionRollResolved = true;
+
+	const float Roll = FMath::FRand();
+
+	if (Roll <= DudDistortionChance)
+	{
+		DistortionsRemaining = 1;
+	}
+	else if (Roll <= DudDistortionChance + AverageDistortionChance)
+	{
+		DistortionsRemaining = 2;
+	}
+	else
+	{
+		DistortionsRemaining = 3;
+	}
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			1.2f,
+			FColor::Green,
+			FString::Printf(TEXT("[AIR] Extra Distortions Rolled: %d"), DistortionsRemaining)
 		);
 	}
 }
 
 void ULGSAirWalkComponent::ConsumeDistortion(const FVector& InputDir)
 {
-	if (!OwnerCharacter || !CachedMoveComp || DistortionsRemaining <= 0)
+	if (!OwnerCharacter || !CachedMoveComp)
 	{
 		return;
 	}
 
-	const bool bIsInitial = (DistortionsRemaining == MaxDistortions);
-	const float UpImpulse = bIsInitial ? InitialUpImpulse : DistortionUpImpulse;
+	const bool bInitialEntry = !bEntryDistortionConsumed;
+	const float UpImpulse = bInitialEntry ? InitialUpImpulse : DistortionUpImpulse;
+
+	if (bInitialEntry)
+	{
+		bEntryDistortionConsumed = true;
+	}
+	else
+	{
+		if (DistortionsRemaining <= 0)
+		{
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(
+					-1,
+					0.5f,
+					FColor::Yellow,
+					TEXT("[AIR] No distortions remaining")
+				);
+			}
+			return;
+		}
+
+		DistortionsRemaining--;
+	}
 
 	FVector Launch = FVector(0.f, 0.f, UpImpulse);
 
@@ -109,52 +200,31 @@ void ULGSAirWalkComponent::ConsumeDistortion(const FVector& InputDir)
 	}
 
 	OwnerCharacter->LaunchCharacter(Launch, true, true);
-
-	DistortionsRemaining--;
 	TriggerWobble();
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			0.6f,
+			FColor::Cyan,
+			FString::Printf(TEXT("[AIR] Distortion used. Remaining=%d"), DistortionsRemaining)
+		);
+	}
 }
 
-void ULGSAirWalkComponent::ApplyAirWalkDirectionalFeel(float DeltaSeconds)
+void ULGSAirWalkComponent::TriggerWobble()
 {
-	if (!OwnerCharacter || !CachedMoveComp)
+	ACharacter* Char = GetOwnerCharacter();
+	if (!Char || !Char->GetCharacterMovement())
 	{
 		return;
 	}
 
-	const FVector InputDir = GetInputDir();
-	if (InputDir.IsNearlyZero())
-	{
-		return;
-	}
-
-	FVector Vel = CachedMoveComp->Velocity;
-	const bool bRising = Vel.Z > 0.f;
-
-	const float PushStrength = bRising ? RisingDirectionalPush : FallingDirectionalPush;
-	const float CounterDrag = bRising ? RisingCounterDrag : FallingCounterDrag;
-
-	// Quick horizontal push in input direction
-	Vel += InputDir * PushStrength * DeltaSeconds;
-
-	// Slight resistance / pushback so it feels like fighting unstable gravity
-	Vel.X *= CounterDrag;
-	Vel.Y *= CounterDrag;
-
-	// Clamp horizontal speed so it stays controlled
-	FVector HorizontalVel(Vel.X, Vel.Y, 0.f);
-	const float HorizontalSpeed = HorizontalVel.Size();
-
-	if (HorizontalSpeed > MaxAirWalkHorizontalSpeed)
-	{
-		const FVector Clamped = HorizontalVel.GetSafeNormal() * MaxAirWalkHorizontalSpeed;
-		Vel.X = Clamped.X;
-		Vel.Y = Clamped.Y;
-	}
-
-	CachedMoveComp->Velocity = Vel;
+	FVector Vel = Char->GetVelocity();
+	Vel.Z *= 0.85f;
+	Char->GetCharacterMovement()->Velocity = Vel;
 }
-
-
 
 FVector ULGSAirWalkComponent::GetInputDir() const
 {
@@ -182,76 +252,6 @@ FVector ULGSAirWalkComponent::GetInputDir() const
 	return Dir.GetClampedToMaxSize(1.f);
 }
 
-void ULGSAirWalkComponent::EnterAirWalk()
-{
-	if (bAirWalkActive)
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				0.5f,
-				FColor::Yellow,
-				TEXT("[AIR] EnterAirWalk ignored - already active")
-			);
-		}
-		return;
-	}
-
-	bAirWalkActive = true;
-	DistortionsRemaining = MaxDistortions;
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			0.75f,
-			FColor::Green,
-			FString::Printf(TEXT("[AIR] EnterAirWalk distortions=%d"), DistortionsRemaining)
-		);
-	}
-}
-
-void ULGSAirWalkComponent::TriggerWobble()
-{
-	auto* Char = GetOwnerCharacter();
-	if (!Char) return;
-
-	FVector Vel = Char->GetVelocity();
-	Vel.Z *= 0.85f;
-
-	Char->GetCharacterMovement()->Velocity = Vel;
-}
-
-
-//end 4_15
-
-void ULGSAirWalkComponent::HandleRelease()
-{
-	if (!bHasAirWalkStrand || !OwnerCharacter)
-	{
-		return;
-	}
-
-	const bool bWasLifting = bAirLiftActive;
-	const float HeldTime = AirWalkHoldTime;
-
-	bAirWalkHeld = false;
-	AirWalkHoldTime = 0.f;
-
-	if (bWasLifting)
-	{
-		EndAirLift(false);
-		FallGracefullyWithVelocityChanger();
-		return;
-	}
-
-	if (HeldTime < HoldThreshold)
-	{
-		PerformAirWalkTap();
-	}
-}
-
 void ULGSAirWalkComponent::PerformAirWalkTap()
 {
 	if (!OwnerCharacter || !CachedMoveComp)
@@ -271,7 +271,77 @@ void ULGSAirWalkComponent::PerformAirWalkTap()
 	OwnerCharacter->LaunchCharacter(FVector(0.f, 0.f, UseImpulse), false, true);
 
 	AirWalkState = EAirWalkState::TapRise;
-	bApexRollConsumed = false;
+}
+
+void ULGSAirWalkComponent::BeginAirLift()
+{
+	if (bAirLiftActive || !OwnerCharacter || !CachedMoveComp)
+	{
+		return;
+	}
+
+	if (ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter))
+	{
+		LGSChar->UnCrouch();
+		LGSChar->CancelSprintForAirWalk();
+	}
+
+	if (!bAirWalkActive)
+	{
+		EnterAirWalk();
+	}
+
+	bAirLiftActive = true;
+	AirWalkState = EAirWalkState::Lift;
+	CachedMoveComp->GravityScale = LiftGravityScale;
+}
+
+void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
+{
+	if (!OwnerCharacter || !CachedMoveComp)
+	{
+		return;
+	}
+
+	if (!bAirWalkActive)
+	{
+		EnterAirWalk();
+	}
+
+	FVector V = CachedMoveComp->Velocity;
+	V.Z = SpaceTimeUpheavalMaxZOverride;
+	CachedMoveComp->Velocity = V;
+	CachedMoveComp->GravityScale = SpaceTimeUpheavalGravityScale;
+
+	bSpaceTimeUpheavalActive = true;
+	bAirLiftActive = false;
+	AirWalkState = EAirWalkState::Lift;
+
+	// Resolve the extra distortions here, after the committed hold/upheaval
+	DetermineDistortionCountFromRoll();
+
+	if (SpaceTimeUpheavalFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			SpaceTimeUpheavalFX,
+			OwnerCharacter->GetRootComponent(),
+			NAME_None,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			true
+		);
+	}
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			0.75f,
+			FColor::Cyan,
+			FString::Printf(TEXT("[AIR] SPACE-TIME UPHEAVAL Z=%.1f"), V.Z)
+		);
+	}
 }
 
 void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
@@ -288,6 +358,9 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 		if (AirWalkHoldTime >= HoldThreshold)
 		{
 			BeginAirLift();
+
+			// First-pass committed hold: start the major ascent right away
+			TriggerSpaceTimeUpheaval();
 		}
 	}
 
@@ -300,7 +373,10 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 			return;
 		}
 
-		AirWalkEnergyCurrent = FMath::Max(0.f, AirWalkEnergyCurrent - LiftEnergyDrainPerSecond * DeltaSeconds);
+		AirWalkEnergyCurrent = FMath::Max(
+			0.f,
+			AirWalkEnergyCurrent - LiftEnergyDrainPerSecond * DeltaSeconds
+		);
 
 		FVector V = CachedMoveComp->Velocity;
 		V.Z = FMath::Min(V.Z + (LiftAccelerationZ * DeltaSeconds), LiftMaxUpVelocity);
@@ -308,39 +384,11 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 		CachedMoveComp->GravityScale = LiftGravityScale;
 	}
 
-	// if (!bAirLiftActive && !bApexRollConsumed && CachedMoveComp->IsFalling())
-	// {
-	// 	const float AbsZ = FMath::Abs(CachedMoveComp->Velocity.Z);
-	// 	if (AbsZ <= ApexVelocityThreshold)
-	// 	{
-	// 		EvaluateAirWalkApexRNG();
-	// 	}
-	// }
-
-	//consider this
+	// Optional later:
 	// if (bAirLiftActive || AirWalkState == EAirWalkState::TapRise || AirWalkState == EAirWalkState::GracefulFall)
 	// {
 	// 	ApplyAirWalkDirectionalFeel(DeltaSeconds);
 	// }
-	//
-}
-
-void ULGSAirWalkComponent::BeginAirLift()
-{
-	if (bAirLiftActive || !OwnerCharacter || !CachedMoveComp)
-	{
-		return;
-	}
-
-	if (ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter))
-	{
-		LGSChar->UnCrouch();
-		LGSChar->CancelSprintForAirWalk();
-	}
-
-	bAirLiftActive = true;
-	AirWalkState = EAirWalkState::Lift;
-	CachedMoveComp->GravityScale = LiftGravityScale;
 }
 
 void ULGSAirWalkComponent::EndAirLift(bool bFromEnergyDepletion)
@@ -353,6 +401,18 @@ void ULGSAirWalkComponent::EndAirLift(bool bFromEnergyDepletion)
 	bAirLiftActive = false;
 	AirWalkState = EAirWalkState::GracefulFall;
 	CachedMoveComp->GravityScale = GracefulFallGravityScale;
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			0.5f,
+			bFromEnergyDepletion ? FColor::Orange : FColor::Yellow,
+			bFromEnergyDepletion
+				? TEXT("[AIR] Lift ended - depleted")
+				: TEXT("[AIR] Lift ended")
+		);
+	}
 }
 
 void ULGSAirWalkComponent::FallGracefullyWithVelocityChanger()
@@ -373,37 +433,56 @@ void ULGSAirWalkComponent::FallGracefullyWithVelocityChanger()
 	CachedMoveComp->GravityScale = GracefulFallGravityScale;
 }
 
-void ULGSAirWalkComponent::EvaluateAirWalkApexRNG()
+void ULGSAirWalkComponent::ApplyAirWalkDirectionalFeel(float DeltaSeconds)
 {
-	if (bApexRollConsumed || !OwnerCharacter)
+	if (!OwnerCharacter || !CachedMoveComp)
 	{
 		return;
 	}
 
-	bApexRollConsumed = true;
-
-	const float Roll = FMath::FRand();
-
-	if (Roll <= GodAirBoostChance)
+	const FVector InputDir = GetInputDir();
+	if (InputDir.IsNearlyZero())
 	{
-		bGodAirBoostAvailable = true;
-		OwnerCharacter->LaunchCharacter(FVector(0.f, 0.f, GodAirBoostImpulse), false, true);
-
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().ClearTimer(Timer_GodAirBoostReset);
-			World->GetTimerManager().SetTimer(
-				Timer_GodAirBoostReset,
-				this,
-				&ULGSAirWalkComponent::ResetGodAirBoost,
-				0.35f,
-				false
-			);
-		}
+		return;
 	}
+
+	FVector Vel = CachedMoveComp->Velocity;
+	const bool bRising = Vel.Z > 0.f;
+
+	const float PushStrength = bRising ? RisingDirectionalPush : FallingDirectionalPush;
+	const float CounterDrag = bRising ? RisingCounterDrag : FallingCounterDrag;
+
+	Vel += InputDir * PushStrength * DeltaSeconds;
+
+	Vel.X *= CounterDrag;
+	Vel.Y *= CounterDrag;
+
+	FVector HorizontalVel(Vel.X, Vel.Y, 0.f);
+	const float HorizontalSpeed = HorizontalVel.Size();
+
+	if (HorizontalSpeed > MaxAirWalkHorizontalSpeed)
+	{
+		const FVector Clamped = HorizontalVel.GetSafeNormal() * MaxAirWalkHorizontalSpeed;
+		Vel.X = Clamped.X;
+		Vel.Y = Clamped.Y;
+	}
+
+	CachedMoveComp->Velocity = Vel;
 }
 
+void ULGSAirWalkComponent::ResetAirWalkState()
+{
+	bAirLiftActive = false;
+	bAirWalkHeld = false;
+	AirWalkHoldTime = 0.f;
+	AirWalkState = EAirWalkState::None;
 
+	bAirWalkActive = false;
+	bEntryDistortionConsumed = false;
+	bDistortionRollResolved = false;
+	DistortionsRemaining = 0;
+	bSpaceTimeUpheavalActive = false;
+}
 
 void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
 {
@@ -418,191 +497,7 @@ void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
 		CachedMoveComp->GravityScale = NormalGravityScale;
 	}
 
-	bAirLiftActive = false;
-	bAirWalkHeld = false;
-	AirWalkHoldTime = 0.f;
-	AirWalkState = EAirWalkState::None;
-
-	// Distortion system reset
-	bAirWalkActive = false;
-	DistortionsRemaining = 0;
-
-	// Old apex RNG reset - remove entirely once that system is deleted
-	bApexRollConsumed = false;
-	bGodAirBoostAvailable = false;
-	bSpaceTimeUpheavalActive = false;
+	ResetAirWalkState();
 
 	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
 }
-
-// Or Consider This Version
-// void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
-// {
-// 	if (bLandingChargeArmed)
-// 	{
-// 		ConsumeLandingCharge(Hit);
-// 	}
-//
-// 	if (CachedMoveComp)
-// 	{
-// 		CachedMoveComp->GravityScale = NormalGravityScale;
-// 	}
-//
-// 	bAirLiftActive = false;
-// 	bAirWalkHeld = false;
-// 	AirWalkHoldTime = 0.f;
-// 	bApexRollConsumed = false;
-// 	AirWalkState = EAirWalkState::None;
-// 	bGodAirBoostAvailable = false;
-// 	bAirWalkActive = false;
-// 	DistortionsRemaining = 0;
-//
-// 	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
-// }
-
-
-//isn't this part of the original Apex which we have to delete?
-void ULGSAirWalkComponent::ResetGodAirBoost()
-{
-	bGodAirBoostAvailable = false;
-}
-
-
-// my new method :)
-// void ULGSAirWalkComponent::engangeRGSSYstemToDeterminAirwalDistortions()
-// {
-// 	initial burst always happens
-// 	extra distortions vary
-//
-// 	if (Roll <= GodChance)
-// 	{
-// 		DistortionsRemaining = 2; // total feel = entry + 2 extras
-// 	}
-// 	else if (Roll <= GodChance + AverageChance)
-// 	{
-// 		DistortionsRemaining = 1; // entry + 1 extra
-// 	}
-// 	else
-// 	{
-// 		DistortionsRemaining = 0; // entry only
-// 	}
-// }
-//end 
-
-
-//for super crazy: OwnerCharacter->LaunchCharacter(FVector(0.f, 0.f, SpaceTimeUpheavalImpulse), false, true);
-//
-//even crazier protects stronger upward momentum
-//  V.Z = FMath::Max(V.Z, SpaceTimeUpheavalVerticalVelocity);
-//
-
-//for mild version
-//  FVector V = CachedMoveComp->Velocity;
-//  V.Z = SpaceTimeUpheavalMaxZOverride;
-//  CachedMoveComp->Velocity = V;
-//
-
-
-///////////////////////Charged Melee Section Phase2/////////////
-
-//4_14_Charged Melee Section for the next
-//
-// void ULGSAirWalkComponent::ArmLandingCharge()
-// {
-// 	bLandingChargeArmed = true;
-//
-// 	if (LandingChargeArmedFX && OwnerCharacter)
-// 	{
-// 		UNiagaraFunctionLibrary::SpawnSystemAttached(
-// 			LandingChargeArmedFX,
-// 			OwnerCharacter->GetRootComponent(),
-// 			NAME_None,
-// 			FVector::ZeroVector,
-// 			FRotator::ZeroRotator,
-// 			EAttachLocation::KeepRelativeOffset,
-// 			true
-// 		);
-// 	}
-//
-// 	if (GEngine)
-// 	{
-// 		GEngine->AddOnScreenDebugMessage(
-// 			-1,
-// 			0.5f,
-// 			FColor::Red,
-// 			TEXT("[AIR] CHARGE ARMED")
-// 		);
-// 	}
-// }
-
-// AActor* ULGSAirWalkComponent::FindNearestLandingTarget(float Radius) const
-// {
-// 	if (!OwnerCharacter || !GetWorld())
-// 	{
-// 		return nullptr;
-// 	}
-//
-// 	AActor* BestTarget = nullptr;
-// 	float BestDistSq = Radius * Radius;
-//
-// 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
-// 	{
-// 		AActor* Candidate = *It;
-// 		if (!Candidate || Candidate == OwnerCharacter)
-// 		{
-// 			continue;
-// 		}
-//
-// 		// Replace this with your actual enemy check
-// 		if (!Candidate->ActorHasTag(TEXT("AI")))
-// 		{
-// 			continue;
-// 		}
-//
-// 		const float DistSq = FVector::DistSquared(
-// 			OwnerCharacter->GetActorLocation(),
-// 			Candidate->GetActorLocation()
-// 		);
-//
-// 		if (DistSq < BestDistSq)
-// 		{
-// 			BestDistSq = DistSq;
-// 			BestTarget = Candidate;
-// 		}
-// 	}
-//
-// 	return BestTarget;
-// }
-//
-// void ULGSAirWalkComponent::ConsumeLandingCharge(const FHitResult& Hit)
-// {
-// 	bLandingChargeArmed = false;
-//
-// 	if (!OwnerCharacter)
-// 	{
-// 		return;
-// 	}
-//
-// 	AActor* Target = FindNearestLandingTarget(LandingChargeSearchRadius);
-//
-// 	if (bFaceNearestTargetOnLanding && Target)
-// 	{
-// 		FVector ToTarget = Target->GetActorLocation() - OwnerCharacter->GetActorLocation();
-// 		ToTarget.Z = 0.f;
-//
-// 		if (!ToTarget.IsNearlyZero())
-// 		{
-// 			const FRotator FaceRot = ToTarget.Rotation();
-// 			OwnerCharacter->SetActorRotation(FaceRot);
-// 		}
-// 	}
-//
-// 	if (ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter))
-// 	{
-// 		if (ULGSCombatCoreComponent* Combat = LGSChar->FindComponentByClass<ULGSCombatCoreComponent>())
-// 		{
-// 			// First pass: special landing burst function you add in CombatCore
-// 			Combat->ExecuteLandingChargeBurst(Target, Hit.ImpactPoint);
-// 		}
-// 	}
-// }
