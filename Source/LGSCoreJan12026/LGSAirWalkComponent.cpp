@@ -40,6 +40,7 @@ void ULGSAirWalkComponent::HandlePress()
 
 	bAirWalkHeld = true;
 	AirWalkHoldTime = 0.f;
+	LastLiftDuration = 0.f;
 }
 
 void ULGSAirWalkComponent::HandleRelease()
@@ -58,16 +59,24 @@ void ULGSAirWalkComponent::HandleRelease()
 	if (bWasLifting)
 	{
 		EndAirLift(false);
+		ApplyReleaseWobble();
 		FallGracefullyWithVelocityChanger();
+
+		const bool bCommitted = (LastLiftDuration >= MinCommitTime);
+
+		if (bCommitted && !bDistortionRollResolved)
+		{
+			DetermineDistortionCountFromRoll();
+			SpawnUpheavalRollFX(DistortionsRemaining);
+		}
+
 		return;
 	}
 
-	// Quick RMB = fast, snappy burst
 	if (HeldTime < HoldThreshold)
 	{
 		const FVector InputDir = GetInputDir();
 
-		// First entry into AirWalk chain
 		if (!bAirWalkActive)
 		{
 			EnterAirWalk();
@@ -76,7 +85,6 @@ void ULGSAirWalkComponent::HandleRelease()
 			return;
 		}
 
-		// Later extra distortions
 		if (CanUseExtraDistortion())
 		{
 			ConsumeDistortion(InputDir);
@@ -93,6 +101,38 @@ void ULGSAirWalkComponent::HandleRelease()
 				TEXT("[AIR] Quick tap ignored - no extra distortions")
 			);
 		}
+	}
+}
+
+void ULGSAirWalkComponent::EndAirLift(bool bFromEnergyDepletion)
+{
+	if (!CachedMoveComp)
+	{
+		return;
+	}
+
+	bAirLiftActive = false;
+	AirWalkState = EAirWalkState::GracefulFall;
+
+	FVector V = CachedMoveComp->Velocity;
+	if (V.Z > 0.f)
+	{
+		V.Z *= 0.35f;
+	}
+	CachedMoveComp->Velocity = V;
+
+	CachedMoveComp->GravityScale = GracefulFallGravityScale;
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			0.5f,
+			bFromEnergyDepletion ? FColor::Orange : FColor::Yellow,
+			bFromEnergyDepletion
+				? TEXT("[AIR] Lift ended - depleted")
+				: TEXT("[AIR] Lift ended")
+		);
 	}
 }
 
@@ -294,6 +334,23 @@ void ULGSAirWalkComponent::BeginAirLift()
 	bAirLiftActive = true;
 	AirWalkState = EAirWalkState::Lift;
 	CachedMoveComp->GravityScale = LiftGravityScale;
+
+	// OPTION A:
+	// Restore the old "rocket" feeling without going back to the full old upheaval branch.
+	// Give held lift an immediate kick, then continue rising while held.
+	FVector V = CachedMoveComp->Velocity;
+	V.Z = FMath::Max(V.Z, HoldLiftStartZ);
+	CachedMoveComp->Velocity = V;
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			0.75f,
+			FColor::Cyan,
+			FString::Printf(TEXT("[AIR] HOLD LIFT START Z=%.1f"), V.Z)
+		);
+	}
 }
 
 void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
@@ -344,6 +401,48 @@ void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
 	}
 }
 
+void ULGSAirWalkComponent::SpawnUpheavalRollFX(int32 Count)
+{
+    UNiagaraSystem* FX = nullptr;
+
+    if (Count == 1) FX = DudUpheavalFX;
+    else if (Count == 2) FX = AverageUpheavalFX;
+    else if (Count == 3) FX = GodUpheavalFX;
+
+    if (!FX || !OwnerCharacter) return;
+
+    UNiagaraFunctionLibrary::SpawnSystemAttached(
+        FX,
+        OwnerCharacter->GetRootComponent(),
+        NAME_None,
+        FVector(0,0,60),
+        FRotator::ZeroRotator,
+        EAttachLocation::KeepRelativeOffset,
+        true
+    );
+}
+
+void ULGSAirWalkComponent::ApplyReleaseWobble()
+{
+    if (!CachedMoveComp || !OwnerCharacter) return;
+
+    FVector V = CachedMoveComp->Velocity;
+
+    // Downward "tug"
+    V.Z -= WobbleDownImpulse;
+
+    // Small lateral instability
+    const FVector RandXY = FVector(
+        FMath::FRandRange(-1.f, 1.f),
+        FMath::FRandRange(-1.f, 1.f),
+        0.f
+    ).GetClampedToMaxSize(1.f);
+
+    V += RandXY * WobbleLateralJitter;
+
+    CachedMoveComp->Velocity = V;
+}
+
 void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 {
 	if (!CachedMoveComp)
@@ -358,17 +457,17 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 		if (AirWalkHoldTime >= HoldThreshold)
 		{
 			BeginAirLift();
-
-			// First-pass committed hold: start the major ascent right away
-			TriggerSpaceTimeUpheaval();
 		}
 	}
 
 	if (bAirLiftActive)
 	{
+		LastLiftDuration += DeltaSeconds;
+
 		if (AirWalkEnergyCurrent <= 0.f)
 		{
 			EndAirLift(true);
+			ApplyReleaseWobble();
 			FallGracefullyWithVelocityChanger();
 			return;
 		}
@@ -379,41 +478,38 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 		);
 
 		FVector V = CachedMoveComp->Velocity;
-		V.Z = FMath::Min(V.Z + (LiftAccelerationZ * DeltaSeconds), LiftMaxUpVelocity);
+		V.Z = FMath::Min(
+			V.Z + (LiftAccelerationZ * DeltaSeconds),
+			LiftMaxUpVelocity
+		);
 		CachedMoveComp->Velocity = V;
 		CachedMoveComp->GravityScale = LiftGravityScale;
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				0.f,
+				FColor::Cyan,
+				FString::Printf(TEXT("[AIR] HOLD ASCENT Z=%.1f Held=%.2f"), V.Z, LastLiftDuration)
+			);
+		}
+
+		// Later: pressure cue / hum / screen distortion can live here
+		// if (LastLiftDuration >= MinCommitTime)
+		// {
+		//     const float T = FMath::Clamp((LastLiftDuration - MinCommitTime) / 0.5f, 0.f, 1.f);
+		// }
 	}
 
 	// Optional later:
 	// if (bAirLiftActive || AirWalkState == EAirWalkState::TapRise || AirWalkState == EAirWalkState::GracefulFall)
 	// {
-	// 	ApplyAirWalkDirectionalFeel(DeltaSeconds);
+	//     ApplyAirWalkDirectionalFeel(DeltaSeconds);
 	// }
 }
 
-void ULGSAirWalkComponent::EndAirLift(bool bFromEnergyDepletion)
-{
-	if (!bAirLiftActive || !CachedMoveComp)
-	{
-		return;
-	}
 
-	bAirLiftActive = false;
-	AirWalkState = EAirWalkState::GracefulFall;
-	CachedMoveComp->GravityScale = GracefulFallGravityScale;
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			0.5f,
-			bFromEnergyDepletion ? FColor::Orange : FColor::Yellow,
-			bFromEnergyDepletion
-				? TEXT("[AIR] Lift ended - depleted")
-				: TEXT("[AIR] Lift ended")
-		);
-	}
-}
 
 void ULGSAirWalkComponent::FallGracefullyWithVelocityChanger()
 {
@@ -482,6 +578,8 @@ void ULGSAirWalkComponent::ResetAirWalkState()
 	bDistortionRollResolved = false;
 	DistortionsRemaining = 0;
 	bSpaceTimeUpheavalActive = false;
+
+	LastLiftDuration = 0.f;
 }
 
 void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
