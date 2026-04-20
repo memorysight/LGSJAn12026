@@ -38,14 +38,9 @@ bool ULGSAirWalkComponent::CanStartFreshAirWalk() const
 		return false;
 	}
 
-	// Once a session has started, landing is required before a fresh restart.
-	if (bMustLandBeforeReuse)
-	{
-		return false;
-	}
-
-	// New AirWalk sessions must begin from the ground.
-	return CachedMoveComp->IsMovingOnGround();
+	// If an AirWalk session has already started since the last landing,
+	// the player must land before starting a fresh one.
+	return !bMustLandBeforeReuse;
 }
 
 bool ULGSAirWalkComponent::IsDistortionCycleExhausted() const
