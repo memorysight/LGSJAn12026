@@ -31,10 +31,65 @@ void ULGSAirWalkComponent::TickComponent(
 	UpdateAirWalk(DeltaTime);
 }
 
+bool ULGSAirWalkComponent::CanStartFreshAirWalk() const
+{
+	if (!OwnerCharacter || !CachedMoveComp)
+	{
+		return false;
+	}
+
+	// Once a session has started, landing is required before a fresh restart.
+	if (bMustLandBeforeReuse)
+	{
+		return false;
+	}
+
+	// New AirWalk sessions must begin from the ground.
+	return CachedMoveComp->IsMovingOnGround();
+}
+
+bool ULGSAirWalkComponent::IsDistortionCycleExhausted() const
+{
+	return bAirWalkActive
+		&& bDistortionRollResolved
+		&& DistortionsRemaining <= 0
+		&& !bAirLiftActive;
+}
+
 void ULGSAirWalkComponent::HandlePress()
 {
-	if (!bHasAirWalkStrand || !OwnerCharacter)
+	if (!bHasAirWalkStrand || !OwnerCharacter || !CachedMoveComp)
 	{
+		return;
+	}
+
+	// Once the cycle is spent, no fresh attempts until landing.
+	if (IsDistortionCycleExhausted())
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				0.6f,
+				FColor::Yellow,
+				TEXT("[AIR] Distortion cycle exhausted - land to reset")
+			);
+		}
+		return;
+	}
+
+	// Block midair restart attempts.
+	if (!bAirWalkActive && !CanStartFreshAirWalk())
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				0.6f,
+				FColor::Yellow,
+				TEXT("[AIR] Must land before starting AirWalk again")
+			);
+		}
 		return;
 	}
 
@@ -77,9 +132,30 @@ void ULGSAirWalkComponent::HandleRelease()
 	{
 		const FVector InputDir = GetInputDir();
 
+		if (IsDistortionCycleExhausted())
+		{
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(
+					-1,
+					0.6f,
+					FColor::Yellow,
+					TEXT("[AIR] No more distortions - land to reset")
+				);
+			}
+			return;
+		}
+
 		if (!bAirWalkActive)
 		{
 			EnterAirWalk();
+
+			// EnterAirWalk can now fail if airborne / locked.
+			if (!bAirWalkActive)
+			{
+				return;
+			}
+
 			ConsumeDistortion(InputDir);
 			AirWalkState = EAirWalkState::TapRise;
 			return;
@@ -143,7 +219,23 @@ void ULGSAirWalkComponent::EnterAirWalk()
 		return;
 	}
 
+	// Fresh midair re-entry is not allowed.
+	if (!CanStartFreshAirWalk())
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				0.6f,
+				FColor::Yellow,
+				TEXT("[AIR] Fresh AirWalk blocked - land first")
+			);
+		}
+		return;
+	}
+
 	bAirWalkActive = true;
+	bMustLandBeforeReuse = true;
 	bEntryDistortionConsumed = false;
 	bDistortionRollResolved = false;
 	DistortionsRemaining = 0;
@@ -320,24 +412,44 @@ void ULGSAirWalkComponent::BeginAirLift()
 		return;
 	}
 
+	// Held lift is only for the initial commitment phase.
+	// After the roll is resolved, the player must land before starting again.
+	if (bDistortionRollResolved)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				0.6f,
+				FColor::Yellow,
+				TEXT("[AIR] Hold blocked - land to start a new cycle")
+			);
+		}
+		return;
+	}
+
+	if (!bAirWalkActive)
+	{
+		EnterAirWalk();
+
+		// EnterAirWalk can fail now if airborne / locked.
+		if (!bAirWalkActive)
+		{
+			return;
+		}
+	}
+
 	if (ALGSCoreJan12026Character* LGSChar = Cast<ALGSCoreJan12026Character>(OwnerCharacter))
 	{
 		LGSChar->UnCrouch();
 		LGSChar->CancelSprintForAirWalk();
 	}
 
-	if (!bAirWalkActive)
-	{
-		EnterAirWalk();
-	}
-
 	bAirLiftActive = true;
 	AirWalkState = EAirWalkState::Lift;
 	CachedMoveComp->GravityScale = LiftGravityScale;
 
-	// OPTION A:
-	// Restore the old "rocket" feeling without going back to the full old upheaval branch.
-	// Give held lift an immediate kick, then continue rising while held.
+	// Immediate kick for held lift start
 	FVector V = CachedMoveComp->Velocity;
 	V.Z = FMath::Max(V.Z, HoldLiftStartZ);
 	CachedMoveComp->Velocity = V;
@@ -363,6 +475,11 @@ void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
 	if (!bAirWalkActive)
 	{
 		EnterAirWalk();
+
+		if (!bAirWalkActive)
+		{
+			return;
+		}
 	}
 
 	FVector V = CachedMoveComp->Velocity;
@@ -374,7 +491,6 @@ void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
 	bAirLiftActive = false;
 	AirWalkState = EAirWalkState::Lift;
 
-	// Resolve the extra distortions here, after the committed hold/upheaval
 	DetermineDistortionCountFromRoll();
 
 	if (SpaceTimeUpheavalFX)
@@ -403,44 +519,59 @@ void ULGSAirWalkComponent::TriggerSpaceTimeUpheaval()
 
 void ULGSAirWalkComponent::SpawnUpheavalRollFX(int32 Count)
 {
-    UNiagaraSystem* FX = nullptr;
+	UNiagaraSystem* FX = nullptr;
 
-    if (Count == 1) FX = DudUpheavalFX;
-    else if (Count == 2) FX = AverageUpheavalFX;
-    else if (Count == 3) FX = GodUpheavalFX;
+	if (Count == 1)
+	{
+		FX = DudUpheavalFX;
+	}
+	else if (Count == 2)
+	{
+		FX = AverageUpheavalFX;
+	}
+	else if (Count == 3)
+	{
+		FX = GodUpheavalFX;
+	}
 
-    if (!FX || !OwnerCharacter) return;
+	if (!FX || !OwnerCharacter)
+	{
+		return;
+	}
 
-    UNiagaraFunctionLibrary::SpawnSystemAttached(
-        FX,
-        OwnerCharacter->GetRootComponent(),
-        NAME_None,
-        FVector(0,0,60),
-        FRotator::ZeroRotator,
-        EAttachLocation::KeepRelativeOffset,
-        true
-    );
+	UNiagaraFunctionLibrary::SpawnSystemAttached(
+		FX,
+		OwnerCharacter->GetRootComponent(),
+		NAME_None,
+		FVector(0.f, 0.f, 60.f),
+		FRotator::ZeroRotator,
+		EAttachLocation::KeepRelativeOffset,
+		true
+	);
 }
 
 void ULGSAirWalkComponent::ApplyReleaseWobble()
 {
-    if (!CachedMoveComp || !OwnerCharacter) return;
+	if (!CachedMoveComp || !OwnerCharacter)
+	{
+		return;
+	}
 
-    FVector V = CachedMoveComp->Velocity;
+	FVector V = CachedMoveComp->Velocity;
 
-    // Downward "tug"
-    V.Z -= WobbleDownImpulse;
+	// Downward tug
+	V.Z -= WobbleDownImpulse;
 
-    // Small lateral instability
-    const FVector RandXY = FVector(
-        FMath::FRandRange(-1.f, 1.f),
-        FMath::FRandRange(-1.f, 1.f),
-        0.f
-    ).GetClampedToMaxSize(1.f);
+	// Small lateral instability
+	const FVector RandXY = FVector(
+		FMath::FRandRange(-1.f, 1.f),
+		FMath::FRandRange(-1.f, 1.f),
+		0.f
+	).GetClampedToMaxSize(1.f);
 
-    V += RandXY * WobbleLateralJitter;
+	V += RandXY * WobbleLateralJitter;
 
-    CachedMoveComp->Velocity = V;
+	CachedMoveComp->Velocity = V;
 }
 
 void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
@@ -495,11 +626,8 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 			);
 		}
 
-		// Later: pressure cue / hum / screen distortion can live here
-		// if (LastLiftDuration >= MinCommitTime)
-		// {
-		//     const float T = FMath::Clamp((LastLiftDuration - MinCommitTime) / 0.5f, 0.f, 1.f);
-		// }
+		// Optional later:
+		// ApplyAirWalkDirectionalFeel(DeltaSeconds);
 	}
 
 	// Optional later:
@@ -508,8 +636,6 @@ void ULGSAirWalkComponent::UpdateAirWalk(float DeltaSeconds)
 	//     ApplyAirWalkDirectionalFeel(DeltaSeconds);
 	// }
 }
-
-
 
 void ULGSAirWalkComponent::FallGracefullyWithVelocityChanger()
 {
@@ -577,6 +703,7 @@ void ULGSAirWalkComponent::ResetAirWalkState()
 	bEntryDistortionConsumed = false;
 	bDistortionRollResolved = false;
 	DistortionsRemaining = 0;
+	bMustLandBeforeReuse = false;
 	bSpaceTimeUpheavalActive = false;
 
 	LastLiftDuration = 0.f;

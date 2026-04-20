@@ -60,8 +60,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Movement|AirWalk")
 	void TriggerSpaceTimeUpheaval();
 
-	
-
 protected:
 	void BeginAirLift();
 	void EndAirLift(bool bFromEnergyDepletion);
@@ -75,10 +73,14 @@ protected:
 	bool CanUseExtraDistortion() const;
 	void ResetAirWalkState();
 
-	//phase2 
+	// Locking helpers to prevent airborne re-entry until landing
+	bool CanStartFreshAirWalk() const;
+	bool IsDistortionCycleExhausted() const;
+
+	// phase2
 	void SpawnUpheavalRollFX(int32 Count);
 	void ApplyReleaseWobble();
-	//end
+	// end
 
 	ACharacter* OwnerCharacter = nullptr;
 	UCharacterMovementComponent* CachedMoveComp = nullptr;
@@ -147,6 +149,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
 	bool bDistortionRollResolved = false;
 
+	// Once AirWalk starts, the player must land before starting a fresh cycle again.
+	UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
+	bool bMustLandBeforeReuse = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
 	float DudDistortionChance = 0.20f;
 
@@ -156,14 +162,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
 	float InitialUpImpulse = 1400.f;
 
-	//phase 2
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, 	Category="Movement|AirWalk|FX")
+	// phase 2
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|FX")
 	UNiagaraSystem* DudUpheavalFX = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, 	Category="Movement|AirWalk|FX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|FX")
 	UNiagaraSystem* AverageUpheavalFX = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, 	Category="Movement|AirWalk|FX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|FX")
 	UNiagaraSystem* GodUpheavalFX = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Distortion")
@@ -213,11 +219,11 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category="AirWalk|Feel")
 	float WobbleDownImpulse = 220.f;
-	
+
 	UPROPERTY(EditAnywhere, Category="AirWalk|Feel")
 	float WobbleLateralJitter = 120.f;
 
-	//additional hold kick
+	// additional hold kick
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk|Upheaval")
 	float HoldLiftStartZ = 1400.f;
 
