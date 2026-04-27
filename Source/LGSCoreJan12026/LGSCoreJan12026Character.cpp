@@ -134,6 +134,14 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	HyperDriveComp = CreateDefaultSubobject<ULGSHyperDriveComponent>(TEXT("HyperDriveComp"));
 	//end 1_27_26
 
+	//4_26_ JumpBooster
+	// Baseline jump uplift:
+	// Keeps normal jumping meaningful beside AirWalk / HyperDrive
+	// without introducing another movement state.
+	float BaseJumpZ = GetCharacterMovement()->JumpZVelocity;
+	GetCharacterMovement()->JumpZVelocity = BaseJumpZ * 1.2f;
+	//end 4_26
+
 	// //new 3_27
 	// PrimaryActorTick.bCanEverTick = true;
 	// NormalGravityScale = GetCharacterMovement() ? GetCharacterMovement()->GravityScale : 1.0f;
