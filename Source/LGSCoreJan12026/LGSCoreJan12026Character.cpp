@@ -25,6 +25,9 @@
 #include "TimerManager.h"
 #include "LGSAirWalkComponent.h"
 //end 4_13
+//new 4_29OverDrive
+#include "LGSOverDriveComponent.h"
+//end 4_29
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 //1/2/26
@@ -133,6 +136,10 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	//HyperDrive 1_27_26
 	HyperDriveComp = CreateDefaultSubobject<ULGSHyperDriveComponent>(TEXT("HyperDriveComp"));
 	//end 1_27_26
+
+	//new 4_29 OverDrive
+	OverDriveComp = CreateDefaultSubobject<ULGSOverDriveComponent>(TEXT("OverDriveComp"));
+	//end 4_29
 
 	//4_26_ JumpBooster
 	// Baseline jump uplift:

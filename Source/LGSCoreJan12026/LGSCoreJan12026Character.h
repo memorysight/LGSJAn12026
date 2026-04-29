@@ -18,6 +18,9 @@ class UInputAction;
 class ULGSAirWalkComponent;
 class ULGSHyperDriveComponent;
 //end 1_27
+//new 4_29 OverDrive
+class ULGSOverDriveComponent;
+//4_29 
 
 
 class UInputComponent;
@@ -85,6 +88,11 @@ class ALGSCoreJan12026Character : public ACharacter
 
 	virtual void Landed(const FHitResult& Hit) override;
 	//end 1_27_26
+
+	//new 4_29 OverDrive
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "OverDrive", meta = (AllowPrivateAccess = "true"))
+	ULGSOverDriveComponent* OverDriveComp = nullptr;
+	//end 4_29
 
 	//New 3_12_Sprint  
 	/** Sprint Input Action */
