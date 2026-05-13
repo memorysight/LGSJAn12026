@@ -1,6 +1,10 @@
 #include "LGSOverDriveComponent.h"
 
 #include "GameFramework/Character.h"
+//new 5_13 ODKillStreak
+#include "TimerManager.h"
+#include "Engine/World.h"
+//end 5_13
 #include "Engine/Engine.h"
 
 ULGSOverDriveComponent::ULGSOverDriveComponent()
@@ -27,6 +31,69 @@ void ULGSOverDriveComponent::BeginPlay()
 		);
 	}
 }
+
+//new 5_13 OverDrive KillStreak
+void ULGSOverDriveComponent::RegisterMeleeKill()
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (bOverDriveActive)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OD] RegisterMeleeKill ignored - OverDrive already active"));
+		return;
+	}
+
+	MeleeKillStreakCount++;
+
+	GetWorld()->GetTimerManager().ClearTimer(Timer_MeleeKillStreakWindow);
+	GetWorld()->GetTimerManager().SetTimer(
+		Timer_MeleeKillStreakWindow,
+		this,
+		&ULGSOverDriveComponent::ResetMeleeKillStreak,
+		MeleeKillStreakWindow,
+		false
+	);
+
+	UE_LOG(LogTemp, Warning, TEXT("[OD] Melee Kill Registered Count=%d / %d"),
+		MeleeKillStreakCount,
+		KillsForOverDrive);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			1.5f,
+			FColor::Orange,
+			FString::Printf(TEXT("[OD] Melee Kill %d / %d"), MeleeKillStreakCount, KillsForOverDrive)
+		);
+	}
+
+	if (MeleeKillStreakCount >= KillsForOverDrive)
+	{
+		OverDriveCharge = OverDriveMaxCharge;
+		ActivateOverDrive();
+
+		GetWorld()->GetTimerManager().ClearTimer(Timer_MeleeKillStreakWindow);
+		MeleeKillStreakCount = 0;
+	}
+}
+
+void ULGSOverDriveComponent::ResetMeleeKillStreak()
+{
+	if (bOverDriveActive)
+	{
+		return;
+	}
+
+	MeleeKillStreakCount = 0;
+
+	UE_LOG(LogTemp, Warning, TEXT("[OD] Melee Kill Streak Reset"));
+}
+
+
 
 float ULGSOverDriveComponent::GetOverDrivePercent() const
 {
@@ -67,6 +134,14 @@ void ULGSOverDriveComponent::ResetOverDrive()
 	bOverDriveActive = false;
 
 	UE_LOG(LogTemp, Warning, TEXT("[OD] Reset"));
+
+	//new 5_13 ODKillingStreak
+	MeleeKillStreakCount = 0;
+
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(Timer_MeleeKillStreakWindow);
+	}
 }
 
 void ULGSOverDriveComponent::ActivateOverDrive()
@@ -89,4 +164,12 @@ void ULGSOverDriveComponent::DeactivateOverDrive()
 	bOverDriveActive = false;
 
 	UE_LOG(LogTemp, Warning, TEXT("[OD] Deactivated"));
+
+	//new 5_13 ODKillingStreak Cleanup
+	MeleeKillStreakCount = 0;
+
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(Timer_MeleeKillStreakWindow);
+	}
 }

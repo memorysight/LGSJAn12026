@@ -43,6 +43,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|OverDrive")
 	void DeactivateOverDrive();
 
+	//new 5_13 OverDriveMeterKillStreak
+	UFUNCTION(BlueprintCallable, Category = "Combat|OverDrive|Kill Streak")
+	void RegisterMeleeKill();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|OverDrive|Kill Streak")
+	void ResetMeleeKillStreak();
+
+	UFUNCTION(BlueprintPure, Category = "Combat|OverDrive|Kill Streak")
+	int32 GetMeleeKillStreakCount() const { return MeleeKillStreakCount; }
+	//end 5_13
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|OverDrive")
 	ACharacter* OwnerCharacter = nullptr;
@@ -63,4 +74,16 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|OverDrive")
 	bool bOverDriveActive = false;
+
+	//new 5_13 OverDrive MeterKillStreak
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|OverDrive|Kill Streak")
+	int32 KillsForOverDrive = 2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|OverDrive|Kill Streak")
+	float MeleeKillStreakWindow = 6.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat|OverDrive|Kill Streak")
+	int32 MeleeKillStreakCount = 0;
+
+	FTimerHandle Timer_MeleeKillStreakWindow;
 };
