@@ -2,9 +2,28 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+//new 5_15 EventHorizon
+class UNiagaraSystem;
+class UNiagaraComponent;
+//end 5_15
 #include "LGSOverDriveComponent.generated.h"
 
 class ACharacter;
+
+
+//new 5_15 EventHorizon
+// Normal melee = physical.
+// OverDrive melee = the anatomy of time starts breaking.
+
+UENUM(BlueprintType)
+enum class EEventHorizonTier : uint8
+{
+	Normal,
+	Dud,
+	Average,
+	God
+};
+//end 5_15
 
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
 class LGSCOREJAN12026_API ULGSOverDriveComponent : public UActorComponent
@@ -43,7 +62,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|OverDrive")
 	void DeactivateOverDrive();
 
-	//new 5_13 OverDriveMeterKillStreak
+	//5_13 OverDriveMeterKillStreak
 	UFUNCTION(BlueprintCallable, Category = "Combat|OverDrive|Kill Streak")
 	void RegisterMeleeKill();
 
@@ -54,6 +73,98 @@ public:
 	int32 GetMeleeKillStreakCount() const { return MeleeKillStreakCount; }
 	//end 5_13
 
+	//new 5_15 EventHorizon
+	// Event Horizon / SmartMove
+	UPROPERTY(BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	bool bChargingEventHorizon = false;
+
+	UPROPERTY(BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	AActor* LockedEventHorizonTarget = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	float EventHorizonTargetSearchRadius = 900.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	float EventHorizonTargetMaxAngleDegrees = 45.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	float EventHorizonChargeMoveSpeedMultiplier = 0.45f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	float EventHorizonMinChargeTime = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	float EventHorizonMaxChargeTime = 1.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	float GodChance = 0.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon")
+	float AverageChance = 0.65f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|Melee")
+	float ODEnemyRuptureChance = 0.20f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|FX")
+	TArray<UNiagaraSystem*> ODMeleeSwingFXPool;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|FX")
+	UNiagaraSystem* EventHorizonNormalFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|FX")
+	UNiagaraSystem* EventHorizonDudFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|FX")
+	UNiagaraSystem* EventHorizonAverageFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|FX")
+	UNiagaraSystem* EventHorizonGodFX = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|FX")
+	UNiagaraSystem* ODRuptureFX = nullptr;
+
+	//5_15 important additional declarations
+	UFUNCTION(BlueprintCallable, Category="OverDrive|EventHorizon")
+	void StartEventHorizonCharge();
+
+	UFUNCTION(BlueprintCallable, Category="OverDrive|EventHorizon")
+	void ReleaseEventHorizon();
+
+	//new 5_15 so clickable is not EH, but regular swing
+	UFUNCTION(BlueprintPure, Category="OverDrive|EventHorizon")
+	float GetEventHorizonHeldTime() const;
+
+	UFUNCTION(BlueprintCallable, Category="OverDrive|EventHorizon")
+	void CancelEventHorizonCharge();
+
+	//5_15 very important
+	void SpawnEventHorizonFX(UNiagaraSystem* FX, AActor* Target);
+	void ApplyEventHorizonDamage(AActor* Target, float Damage, float Knockback);
+
+	UFUNCTION(BlueprintCallable, Category="OverDrive|EventHorizon")
+	AActor* FindBestEventHorizonTarget();
+
+	void ExecuteEventHorizon(EEventHorizonTier Tier, AActor* Target, float HeldTime);
+	void SpawnRandomODSwingTrail();
+	void TryODRupture(AActor* Target);
+	void SpawnEventHorizonLockFX(AActor* Target);
+	void ClearEventHorizonTarget();
+	void DebugOD(const FString& Message, const FColor& Color = FColor::White, float Time = 1.5f);
+
+	float EventHorizonChargeStartTime = 0.f;
+	float CachedWalkSpeedBeforeEH = 600.f;
+	//end 5_15
+
+	//new 5_15 expose Niagara Slot
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="OverDrive|EventHorizon|FX")
+	UNiagaraSystem* EventHorizonLockOnFX = nullptr;
+
+	UPROPERTY()
+	UNiagaraComponent* ActiveEventHorizonLockFX = nullptr;
+	//end 5_15
+
+
+	
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|OverDrive")
 	ACharacter* OwnerCharacter = nullptr;

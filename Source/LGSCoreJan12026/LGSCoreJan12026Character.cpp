@@ -256,38 +256,40 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 
 		// Combat bindings autofire
 		//2_18
+		// 5_15 Combat bindings: Character routes LMB so melee can become Event Horizon
+		// Ranged = CombatCore autofire
+		// Melee  = OverDrive Event Horizon charge/release
 		if (CombatCore && ShootAction)
 		{
-
 			EnhancedInputComponent->BindAction(
 				ShootAction,
-				ETriggerEvent::Triggered,
-				CombatCore,
-				&ULGSCombatCoreComponent::StartAutoFire
+				ETriggerEvent::Started,
+				this,
+				&ALGSCoreJan12026Character::OnPrimaryStarted
 			);
 
 			EnhancedInputComponent->BindAction(
 				ShootAction,
 				ETriggerEvent::Completed,
-				CombatCore,
-				&ULGSCombatCoreComponent::StopAutoFire
+				this,
+				&ALGSCoreJan12026Character::OnPrimaryReleased
 			);
 
 			EnhancedInputComponent->BindAction(
 				ShootAction,
 				ETriggerEvent::Canceled,
-				CombatCore,
-				&ULGSCombatCoreComponent::StopAutoFire
+				this,
+				&ALGSCoreJan12026Character::OnPrimaryReleased
 			);
 
 			UE_LOG(LogTemplateCharacter, Warning,
-				TEXT("[INPUT] Bound ShootAction=%s to CombatCore=%s"),
+				TEXT("[INPUT] Bound ShootAction=%s to Character primary router. CombatCore=%s OverDriveComp=%s"),
 				*GetNameSafe(ShootAction),
-				*GetNameSafe(CombatCore));
-
-
+				*GetNameSafe(CombatCore),
+				*GetNameSafe(OverDriveComp));
 		}
-		//end2_18
+		//end2_18 autofire
+		//end 5_15 EventHorizon charge enablement
 
 		//new 3_12_Sprint
 		if (SprintAction)
@@ -685,3 +687,49 @@ void ALGSCoreJan12026Character::Landed(const FHitResult& Hit)
 	}
 }
 //end 1_27_26 & 3_27
+
+//new 5_15 EventHorizon Enablement
+void ALGSCoreJan12026Character::OnPrimaryStarted()
+{
+	if (CombatCore && !CombatCore->IsRangedMode())
+	{
+		if (OverDriveComp)
+		{
+			OverDriveComp->StartEventHorizonCharge();
+			return;
+		}
+	}
+
+	if (CombatCore)
+	{
+		CombatCore->StartAutoFire();
+	}
+}
+
+//new 5_15 updated So quick click is normal Swing, while hold is EH
+void ALGSCoreJan12026Character::OnPrimaryReleased()
+{
+	if (CombatCore && !CombatCore->IsRangedMode())
+	{
+		if (OverDriveComp && OverDriveComp->bChargingEventHorizon)
+		{
+			// Quick click = regular mace swing.
+			if (OverDriveComp->GetEventHorizonHeldTime() < OverDriveComp->EventHorizonMinChargeTime)
+			{
+				OverDriveComp->CancelEventHorizonCharge();
+				CombatCore->TryPrimary();
+				return;
+			}
+
+			// Hold long enough = Event Horizon.
+			OverDriveComp->ReleaseEventHorizon();
+			return;
+		}
+	}
+
+	if (CombatCore)
+	{
+		CombatCore->StopAutoFire();
+	}
+}
+//end 5_15

@@ -182,87 +182,10 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|AirWalk", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULGSAirWalkComponent> AirWalkComp = nullptr;
 
-	//helper function
-	// UFUNCTION(BlueprintPure, Category="Movement|AirWalk")
-	// bool IsAirWalkActive() const
-	// {
-	// 	return bAirLiftActive || AirWalkState == EAirWalkState::TapRise || AirWalkState == EAirWalkState::GracefulFall;
-	// }
-	//
-	// void BeginAirLift();
-	// void EndAirLift(bool bFromEnergyDepletion);
-	// void PerformAirWalkTap();
-	// void UpdateAirWalk(float DeltaSeconds);
-	// void EvaluateAirWalkApexRNG();
-	// void FallGracefullyWithVelocityChanger();
-	// void ResetGodAirBoost();
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// bool bHasAirWalkStrand = true;
-	//
-	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// bool bAirWalkHeld = false;
-	//
-	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// bool bAirLiftActive = false;
-	//
-	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// bool bGodAirBoostAvailable = false;
-	//
-	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// bool bApexRollConsumed = false;
-	//
-	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float AirWalkHoldTime = 0.f;
-	//
-	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// EAirWalkState AirWalkState = EAirWalkState::None;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float TapAirWalkImpulseGround = 1000.f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float TapAirWalkImpulseAir = 850.f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float HoldThreshold = 0.18f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float LiftAccelerationZ = 420.f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float LiftMaxUpVelocity = 500.f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float LiftEnergyDrainPerSecond = 18.f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float AirWalkEnergyMax = 100.f;
-	//
-	// UPROPERTY(BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float AirWalkEnergyCurrent = 100.f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float GracefulFallGravityScale = 0.55f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float NormalGravityScale = 1.0f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float ApexVelocityThreshold = 90.f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float GodAirBoostChance = 0.20f;
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float GodAirBoostImpulse = 650.f;
-	//
-	// // header
-	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Movement|AirWalk", meta=(AllowPrivateAccess="true"))
-	// float LiftGravityScale = 0.35f;
-	//
-	// FTimerHandle Timer_GodAirBoostReset;
-	// //end 3_27
+	//new 5_15 EventHorizon ChargeEnablement
+	void OnPrimaryStarted();
+	void OnPrimaryReleased();
+	//end 5_15
 
 	// DataAssets
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapons|Data", meta = (AllowPrivateAccess = "true"))
