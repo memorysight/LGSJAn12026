@@ -28,6 +28,9 @@
 //new 4_29OverDrive
 #include "LGSOverDriveComponent.h"
 //end 4_29
+//new 7_14 Omega
+#include "GameFramework/SpringArmComponent.h"
+//end 7_14
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 //1/2/26
@@ -60,6 +63,44 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
 	FirstPersonCameraComponent->SetRelativeLocation(FVector(-10.f, 0.f, 60.f)); // Position the camera
 	FirstPersonCameraComponent->bUsePawnControlRotation = true;
+
+	//new 7_14 OmegaDrive third-person camera
+
+	OmegaSpringArm = CreateDefaultSubobject<USpringArmComponent>(
+		TEXT("OmegaSpringArm")
+	);
+
+	OmegaSpringArm->SetupAttachment(GetCapsuleComponent());
+	OmegaSpringArm->TargetArmLength = 425.f;
+	OmegaSpringArm->SetRelativeLocation(FVector(0.f, 0.f, 70.f));
+	OmegaSpringArm->bUsePawnControlRotation = true;
+	OmegaSpringArm->bEnableCameraLag = true;
+	OmegaSpringArm->CameraLagSpeed = 10.f;
+	OmegaSpringArm->bDoCollisionTest = true;
+
+	OmegaThirdPersonCamera = CreateDefaultSubobject<UCameraComponent>(
+		TEXT("OmegaThirdPersonCamera")
+	);
+
+	OmegaThirdPersonCamera->SetupAttachment(
+		OmegaSpringArm,
+		USpringArmComponent::SocketName
+	);
+
+	OmegaThirdPersonCamera->bUsePawnControlRotation = false;
+	OmegaThirdPersonCamera->SetActive(false);
+
+	// The inherited CharacterMesh0 already knows which body Omega uses.
+	// C++ is not selecting Serath here; it is only keeping her hidden
+	// until reality has earned the right to see her.
+	if (GetMesh())
+	{
+		GetMesh()->SetHiddenInGame(true, true);
+		GetMesh()->SetVisibility(false, true);
+		GetMesh()->SetOwnerNoSee(false);
+		GetMesh()->SetOnlyOwnerSee(false);
+	}
+	//end 7_14
 
 	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh1P"));
 	Mesh1P->SetOnlyOwnerSee(true);
@@ -332,6 +373,33 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 			);
 		}
 
+		//new 7_14 OmegaDrive Input
+		if (OmegaDriveAction)
+		{
+			EnhancedInputComponent->BindAction(
+				OmegaDriveAction,
+				ETriggerEvent::Started,
+				this,
+				&ALGSCoreJan12026Character::OnOmegaDrivePressed
+			);
+
+			UE_LOG(
+				LogTemplateCharacter,
+				Warning,
+				TEXT("[OMD][INPUT] Bound OmegaDriveAction=%s"),
+				*GetNameSafe(OmegaDriveAction)
+			);
+		}
+		else
+		{
+			UE_LOG(
+				LogTemplateCharacter,
+				Warning,
+				TEXT("[OMD][INPUT] OmegaDriveAction is NULL")
+			);
+		}
+		//end 7_14
+
 		//3_14_Crouch
 		if (CrouchAction)
 		{
@@ -472,6 +540,7 @@ void ALGSCoreJan12026Character::OnSprintReleased()
 		GetCharacterMovement() ? GetCharacterMovement()->MaxWalkSpeed : -1.f);
 }
 
+//updated for Omega 7_14
 void ALGSCoreJan12026Character::UpdateSprintState()
 {
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
@@ -480,13 +549,19 @@ void ALGSCoreJan12026Character::UpdateSprintState()
 		return;
 	}
 
-	// For first pass, sprint is simply "button held".
-	// Later we can require move input, crouch state, slide state, etc.
 	bIsSprinting = bSprintHeld;
+
+	// Omega owns movement speed while manifested.
+	// Mortal sprint logic may resume when reality gets the player back.
+	if (bOmegaDriveActive)
+	{
+		MoveComp->MaxWalkSpeed = OmegaWalkSpeed;
+		return;
+	}
 
 	MoveComp->MaxWalkSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
 }
-//end 3_12_Sprint
+//end 3_12_Sprint updated for Omega deterministic movement 7_14
 
 //new 3_14 crouch
 void ALGSCoreJan12026Character::OnCrouchStarted()
@@ -516,6 +591,198 @@ bool ALGSCoreJan12026Character::IsAirWalkActive() const
 {
 	return AirWalkComp ? AirWalkComp->IsAirWalkActive() : false;
 }
+
+
+//new 7_14 Omega
+void ALGSCoreJan12026Character::OnOmegaDrivePressed()
+{
+	if (bOmegaDriveActive)
+	{
+		UE_LOG(
+			LogTemplateCharacter,
+			Warning,
+			TEXT("[OMD] O ignored - Omega already active")
+		);
+		return;
+	}
+
+	if (!IsOmegaDriveReady())
+	{
+		UE_LOG(
+			LogTemplateCharacter,
+			Warning,
+			TEXT("[OMD] O pressed, but HD + OD alignment is incomplete")
+		);
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				1.5f,
+				FColor::Silver,
+				TEXT("[OMD] Requires HyperDrive + OverDrive")
+			);
+		}
+
+		return;
+	}
+
+	ActivateOmegaDrive();
+}
+
+void ALGSCoreJan12026Character::ActivateOmegaDrive()
+{
+	if (bOmegaDriveActive || !IsOmegaDriveReady())
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+
+	if (!MoveComp ||
+		!FirstPersonCameraComponent ||
+		!OmegaThirdPersonCamera ||
+		!GetMesh())
+	{
+		UE_LOG(
+			LogTemplateCharacter,
+			Error,
+			TEXT("[OMD] Activation blocked - required component missing")
+		);
+		return;
+	}
+
+	bOmegaDriveActive = true;
+
+	// Remember the human configuration.
+	// Omega is allowed to distort movement, not forget how to put it back.
+	PreOmegaWalkSpeed = MoveComp->MaxWalkSpeed;
+	PreOmegaJumpZVelocity = MoveComp->JumpZVelocity;
+	bPreOmegaUseControllerRotationYaw = bUseControllerRotationYaw;
+	bPreOmegaOrientRotationToMovement =
+		MoveComp->bOrientRotationToMovement;
+
+	if (Mesh1P)
+	{
+		Mesh1P->SetHiddenInGame(true, true);
+		Mesh1P->SetVisibility(false, true);
+	}
+
+	if (RangedWeaponVisual)
+	{
+		RangedWeaponVisual->SetHiddenInGame(true, true);
+		RangedWeaponVisual->SetVisibility(false, true);
+	}
+
+	if (MeleeWeaponVisual)
+	{
+		MeleeWeaponVisual->SetHiddenInGame(true, true);
+		MeleeWeaponVisual->SetVisibility(false, true);
+	}
+
+	// Today: Serath.
+	// Tomorrow: the holographic body that finally learned how to leave Blender.
+	GetMesh()->SetHiddenInGame(false, true);
+	GetMesh()->SetVisibility(true, true);
+
+	FirstPersonCameraComponent->SetActive(false);
+	OmegaThirdPersonCamera->SetActive(true);
+
+	MoveComp->MaxWalkSpeed = OmegaWalkSpeed;
+	MoveComp->JumpZVelocity = OmegaJumpZVelocity;
+
+	bUseControllerRotationYaw = false;
+	MoveComp->bOrientRotationToMovement = true;
+	MoveComp->RotationRate = FRotator(0.f, 720.f, 0.f);
+
+	GetWorldTimerManager().ClearTimer(Timer_OmegaDriveDuration);
+	GetWorldTimerManager().SetTimer(
+		Timer_OmegaDriveDuration,
+		this,
+		&ALGSCoreJan12026Character::DeactivateOmegaDrive,
+		OmegaDriveDuration,
+		false
+	);
+
+	UE_LOG(
+		LogTemplateCharacter,
+		Warning,
+		TEXT("[OMD] ACTIVATED Duration=%.1f Speed=%.1f Jump=%.1f"),
+		OmegaDriveDuration,
+		OmegaWalkSpeed,
+		OmegaJumpZVelocity
+	);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			2.f,
+			FColor::Cyan,
+			TEXT("[OMD] THIRD-PERSON MANIFESTATION")
+		);
+	}
+}
+
+void ALGSCoreJan12026Character::DeactivateOmegaDrive()
+{
+	if (!bOmegaDriveActive)
+	{
+		return;
+	}
+
+	bOmegaDriveActive = false;
+
+	GetWorldTimerManager().ClearTimer(Timer_OmegaDriveDuration);
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+
+	if (MoveComp)
+	{
+		MoveComp->MaxWalkSpeed = PreOmegaWalkSpeed;
+		MoveComp->JumpZVelocity = PreOmegaJumpZVelocity;
+		MoveComp->bOrientRotationToMovement =
+			bPreOmegaOrientRotationToMovement;
+	}
+
+	bUseControllerRotationYaw = bPreOmegaUseControllerRotationYaw;
+
+	if (OmegaThirdPersonCamera)
+	{
+		OmegaThirdPersonCamera->SetActive(false);
+	}
+
+	if (FirstPersonCameraComponent)
+	{
+		FirstPersonCameraComponent->SetActive(true);
+	}
+
+	if (GetMesh())
+	{
+		GetMesh()->SetHiddenInGame(true, true);
+		GetMesh()->SetVisibility(false, true);
+	}
+
+	if (Mesh1P)
+	{
+		Mesh1P->SetHiddenInGame(false, true);
+		Mesh1P->SetVisibility(true, true);
+	}
+
+	// Omega may temporarily erase the weapon from sight,
+	// but it should not erase the player's last decision.
+	if (CombatCore)
+	{
+		ApplyWeaponVisualsForMode(CombatCore->GetCombatMode());
+	}
+
+	UE_LOG(
+		LogTemplateCharacter,
+		Warning,
+		TEXT("[OMD] Finished - returning to first-person reality")
+	);
+}
+//end 7_14
 
 
 //1_4_26
@@ -733,3 +1000,25 @@ void ALGSCoreJan12026Character::OnPrimaryReleased()
 	}
 }
 //end 5_15
+
+//new 7_14 OmegaDrive First Pass
+
+bool ALGSCoreJan12026Character::IsOmegaDriveReady() const
+{
+	if (!HyperDriveComp || !OverDriveComp)
+	{
+		return false;
+	}
+
+	return HyperDriveComp->IsHyperDriveActive()
+		&& OverDriveComp->IsOverDriveActive();
+}
+
+//
+// bool ALGSCoreJan12026Character::IsOmegaDriveReady() const
+// {
+// 	return HyperDriveComp
+// 		&& OverDriveComp
+// 		&& HyperDriveComp->IsHyperDriveActive()
+// 		&& OverDriveComp->IsOverDriveActive();
+// }

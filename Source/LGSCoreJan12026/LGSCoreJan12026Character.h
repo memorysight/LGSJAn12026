@@ -7,6 +7,9 @@
 //1_3_26
 #include "LGSCombatCoreComponent.h"
 //end 1_3_26
+//new 7_14_Omega
+class USpringArmComponent;
+//end 7_14
 //1/4/26
 #include "LGSWeaponDataAsset.h"
 #include "InputMappingContext.h"
@@ -14,11 +17,11 @@
 //1_23_26
 class UInputAction;
 //end 1_23_26
-//new 1_27
+//1_27
 class ULGSAirWalkComponent;
 class ULGSHyperDriveComponent;
 //end 1_27
-//new 4_29 OverDrive
+//4_29 OverDrive
 class ULGSOverDriveComponent;
 //4_29 
 
@@ -94,13 +97,29 @@ class ALGSCoreJan12026Character : public ACharacter
 	ULGSOverDriveComponent* OverDriveComp = nullptr;
 	//end 4_29
 
-	//New 3_12_Sprint   
+	//new 7_14 OmegaDrive Camera
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "OmegaDrive|Camera",
+		meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USpringArmComponent> OmegaSpringArm = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "OmegaDrive|Camera",
+		meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCameraComponent> OmegaThirdPersonCamera = nullptr;
+	//end 7_14
+
+	//new 7_14 OmegaDrive Input
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input",
+		meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> OmegaDriveAction = nullptr;
+	//end 7_14
+
+	//3_12_Sprint   
 	/** Sprint Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* SprintAction;
 	//end 3_12_Sprint
 
-	// New 3_13_Crouch
+	// 3_13_Crouch
 	/** Crouch Input Action */
 
 	UFUNCTION()
@@ -145,7 +164,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(EditDefaultsOnly, Category = "Weapons|Fixups")
 	FRotator MeleeVisualRotationFix = FRotator::ZeroRotator;
 
-	//new combat mode 1_30
+	//combat mode 1_30
 	//seems to be already existing in code see 152 & 155 
 	// UFUNCTION()     
 	// void HandleCombatModeChanged(ECombatMode NewMode);
@@ -169,7 +188,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	UStaticMeshComponent* ShieldVisualComp;
 	//end 1_19
 
-	//new 3_27 AirWalk
+	//3_27 AirWalk
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* AirWalkAction = nullptr;
 
@@ -182,7 +201,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|AirWalk", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULGSAirWalkComponent> AirWalkComp = nullptr;
 
-	//new 5_15 EventHorizon ChargeEnablement
+	//5_15 EventHorizon ChargeEnablement
 	void OnPrimaryStarted();
 	void OnPrimaryReleased();
 	//end 5_15
@@ -210,7 +229,7 @@ public:
 	USphereComponent* GetShieldCollisionComp() const { return ShieldCollisionComp; }
 	UStaticMeshComponent* GetShieldVisualComp() const { return ShieldVisualComp; }
 
-	//new 2_23
+	//2_23
 	UStaticMeshComponent* GetMeleeWeaponVisual() const { return MeleeWeaponVisual; }
 	//end 2_23
 
@@ -223,13 +242,30 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movement|AirWalk")
 	bool IsAirWalkActive() const;
 
-	//new 4_15 Airwalk Updated
+	//4_15 Airwalk Updated
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	FVector2D GetLastMoveInput() const { return LastMoveInput; }
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	FVector2D LastMoveInput = FVector2D::ZeroVector;
 	//end 4_14
+
+	//new 7_14 OmegaDrive First Pass
+	UFUNCTION()
+	void OnOmegaDrivePressed();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|OmegaDrive")
+	void ActivateOmegaDrive();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|OmegaDrive")
+	void DeactivateOmegaDrive();
+
+	UFUNCTION(BlueprintPure, Category = "Combat|OmegaDrive")
+	bool IsOmegaDriveReady() const;
+
+	UFUNCTION(BlueprintPure, Category = "Combat|OmegaDrive")
+	bool IsOmegaDriveActive() const { return bOmegaDriveActive; }
+	//end 7_14
 
 protected:
 	/** Called for movement input */ 
@@ -242,7 +278,7 @@ protected:
 	virtual void BeginPlay() override;
 	//end 1_3_26
 
-	//new 3_12_Sprint
+	//3_12_Sprint
 	UFUNCTION()
 	void OnSprintStarted();
 
@@ -264,9 +300,32 @@ protected:
 	bool bIsSprinting = false;
 	//end 3_12_Sprint
 
-	// //new 3_27
+	// //3_27
 	// virtual void Tick(float DeltaSeconds) override;
 	// //end 3_27
+
+	//new 7_14 OmegaDrive State
+	UPROPERTY(BlueprintReadOnly, Category = "Combat|OmegaDrive",
+		meta = (AllowPrivateAccess = "true"))
+	bool bOmegaDriveActive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|OmegaDrive")
+	float OmegaDriveDuration = 12.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|OmegaDrive|Movement")
+	float OmegaWalkSpeed = 1100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|OmegaDrive|Movement")
+	float OmegaJumpZVelocity = 900.f;
+
+	FTimerHandle Timer_OmegaDriveDuration;
+
+	float PreOmegaWalkSpeed = 0.f;
+	float PreOmegaJumpZVelocity = 0.f;
+
+	bool bPreOmegaUseControllerRotationYaw = true;
+	bool bPreOmegaOrientRotationToMovement = false;
+	//end 7_14
 
 
 
