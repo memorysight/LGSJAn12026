@@ -94,7 +94,7 @@ class ALGSCoreJan12026Character : public ACharacter
 	ULGSOverDriveComponent* OverDriveComp = nullptr;
 	//end 4_29
 
-	//New 3_12_Sprint  
+	//New 3_12_Sprint   
 	/** Sprint Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* SprintAction;
