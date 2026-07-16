@@ -93,14 +93,41 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	// The inherited CharacterMesh0 already knows which body Omega uses.
 	// C++ is not selecting Serath here; it is only keeping her hidden
 	// until reality has earned the right to see her.
+	// if (GetMesh())
+	// {
+	// 	GetMesh()->SetHiddenInGame(true, true);
+	// 	GetMesh()->SetVisibility(false, true);
+	// 	GetMesh()->SetOwnerNoSee(false);
+	// 	GetMesh()->SetOnlyOwnerSee(false);
+	// }
+	//end 7_14
+
+	//new 7_15 avoid propagating visibility into new child
 	if (GetMesh())
 	{
-		GetMesh()->SetHiddenInGame(true, true);
-		GetMesh()->SetVisibility(false, true);
+		GetMesh()->SetHiddenInGame(true, false);
+		GetMesh()->SetVisibility(false, false);
 		GetMesh()->SetOwnerNoSee(false);
 		GetMesh()->SetOnlyOwnerSee(false);
+		GetMesh()->SetComponentTickEnabled(true);
 	}
-	//end 7_14
+	//end 7_15
+
+	//new 7_15 OmegaDrive retarget target body
+	OmegaSerathMesh = CreateDefaultSubobject<USkeletalMeshComponent>(
+		TEXT("OmegaSerathMesh")
+	);
+
+	// CharacterMesh0 will become the hidden UEFN mannequin source.
+	// This child receives the retargeted pose and becomes visible during Omega.
+	OmegaSerathMesh->SetupAttachment(GetMesh());
+	OmegaSerathMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	OmegaSerathMesh->SetHiddenInGame(true, false);
+	OmegaSerathMesh->SetVisibility(false, false);
+	OmegaSerathMesh->SetOwnerNoSee(false);
+	OmegaSerathMesh->SetOnlyOwnerSee(false);
+	OmegaSerathMesh->SetComponentTickEnabled(true);
+	//end 7_15
 
 	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh1P"));
 	Mesh1P->SetOnlyOwnerSee(true);
@@ -224,6 +251,30 @@ void ALGSCoreJan12026Character::NotifyControllerChanged()
 void ALGSCoreJan12026Character::BeginPlay()
 {
 	Super::BeginPlay();
+
+	//new 7_15 Omega deterministic startup state
+	if (GetMesh())
+	{
+		// Hidden UEFN mannequin source.
+		GetMesh()->SetHiddenInGame(true, false);
+		GetMesh()->SetVisibility(false, false);
+		GetMesh()->SetComponentTickEnabled(true);
+	}
+
+	if (OmegaSerathMesh)
+	{
+		// Visible only after Omega activation.
+		OmegaSerathMesh->SetHiddenInGame(true, false);
+		OmegaSerathMesh->SetVisibility(false, false);
+		OmegaSerathMesh->SetComponentTickEnabled(true);
+	}
+
+	if (Mesh1P)
+	{
+		Mesh1P->SetHiddenInGame(false, true);
+		Mesh1P->SetVisibility(true, true);
+	}
+	//end 7_15
 
 	//1_23_26 test if pawn is correct
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[PAWN] BeginPlay: %s (%s)"),
@@ -639,10 +690,18 @@ void ALGSCoreJan12026Character::ActivateOmegaDrive()
 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 
+	// if (!MoveComp ||
+	// 	!FirstPersonCameraComponent ||
+	// 	!OmegaThirdPersonCamera ||
+	// 	!GetMesh())
+
+	//new 7_15 update
 	if (!MoveComp ||
-		!FirstPersonCameraComponent ||
-		!OmegaThirdPersonCamera ||
-		!GetMesh())
+	!FirstPersonCameraComponent ||
+	!OmegaThirdPersonCamera ||
+	!GetMesh() ||
+	!OmegaSerathMesh)
+	
 	{
 		UE_LOG(
 			LogTemplateCharacter,
@@ -682,8 +741,20 @@ void ALGSCoreJan12026Character::ActivateOmegaDrive()
 
 	// Today: Serath.
 	// Tomorrow: the holographic body that finally learned how to leave Blender.
-	GetMesh()->SetHiddenInGame(false, true);
-	GetMesh()->SetVisibility(true, true);
+	// GetMesh()->SetHiddenInGame(false, true);
+	// GetMesh()->SetVisibility(true, true);
+
+	//new 7_15 update
+	// The UEFN mannequin remains invisible while producing the source pose.
+	GetMesh()->SetHiddenInGame(true, false);
+	GetMesh()->SetVisibility(false, false);
+	GetMesh()->SetComponentTickEnabled(true);
+
+	// The retargeted Serath body becomes the visible Omega manifestation.
+	OmegaSerathMesh->SetHiddenInGame(false, false);
+	OmegaSerathMesh->SetVisibility(true, false);
+	OmegaSerathMesh->SetComponentTickEnabled(true);
+	
 
 	FirstPersonCameraComponent->SetActive(false);
 	OmegaThirdPersonCamera->SetActive(true);
@@ -757,12 +828,35 @@ void ALGSCoreJan12026Character::DeactivateOmegaDrive()
 		FirstPersonCameraComponent->SetActive(true);
 	}
 
-	if (GetMesh())
+	// if (GetMesh())
+	// {
+	// 	GetMesh()->SetHiddenInGame(true, true);
+	// 	GetMesh()->SetVisibility(false, true);
+	// }
+	//
+	// if (Mesh1P)
+	// {
+	// 	Mesh1P->SetHiddenInGame(false, true);
+	// 	Mesh1P->SetVisibility(true, true);
+	// }
+
+
+	//new 7_15 update
+	if (OmegaSerathMesh)
 	{
-		GetMesh()->SetHiddenInGame(true, true);
-		GetMesh()->SetVisibility(false, true);
+		OmegaSerathMesh->SetHiddenInGame(true, false);
+		OmegaSerathMesh->SetVisibility(false, false);
 	}
 
+	if (GetMesh())
+	{
+		GetMesh()->SetHiddenInGame(true, false);
+		GetMesh()->SetVisibility(false, false);
+		GetMesh()->SetComponentTickEnabled(true);
+	}
+
+	
+	// Return the player's first-person body.
 	if (Mesh1P)
 	{
 		Mesh1P->SetHiddenInGame(false, true);
