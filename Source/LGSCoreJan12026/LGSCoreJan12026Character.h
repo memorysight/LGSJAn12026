@@ -334,7 +334,7 @@ protected:
 	bool bPreOmegaOrientRotationToMovement = false;
 	//end 7_14
 
-
+ 
 
 protected:
 	// APawn interface
