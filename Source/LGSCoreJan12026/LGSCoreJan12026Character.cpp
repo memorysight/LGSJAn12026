@@ -744,16 +744,34 @@ void ALGSCoreJan12026Character::ActivateOmegaDrive()
 	// GetMesh()->SetHiddenInGame(false, true);
 	// GetMesh()->SetVisibility(true, true);
 
-	//new 7_15 update
+	//new 7_15 update OriginalVisibilityApproach
 	// The UEFN mannequin remains invisible while producing the source pose.
-	GetMesh()->SetHiddenInGame(true, false);
-	GetMesh()->SetVisibility(false, false);
+	// GetMesh()->SetHiddenInGame(true, false);
+	// GetMesh()->SetVisibility(false, false);
+	// GetMesh()->SetComponentTickEnabled(true);
+	//
+	// // The retargeted Serath body becomes the visible Omega manifestation.
+	// OmegaSerathMesh->SetHiddenInGame(false, false);
+	// OmegaSerathMesh->SetVisibility(true, false);
+	// OmegaSerathMesh->SetComponentTickEnabled(true);
+
+
+	//new 7_18MannyVisibilityTest
+
+	// DIAGNOSTIC: reveal the source mannequin only.
+	GetMesh()->SetHiddenInGame(false, false);
+	GetMesh()->SetVisibility(true, false);
 	GetMesh()->SetComponentTickEnabled(true);
 
-	// The retargeted Serath body becomes the visible Omega manifestation.
-	OmegaSerathMesh->SetHiddenInGame(false, false);
-	OmegaSerathMesh->SetVisibility(true, false);
+	// Hide Serath for this diagnostic.
+	OmegaSerathMesh->SetHiddenInGame(true, false);
+	OmegaSerathMesh->SetVisibility(false, false);
 	OmegaSerathMesh->SetComponentTickEnabled(true);
+	//end Manny visibilityTest
+
+
+
+	
 	
 
 	FirstPersonCameraComponent->SetActive(false);
