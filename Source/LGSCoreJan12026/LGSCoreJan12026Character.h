@@ -107,6 +107,17 @@ class ALGSCoreJan12026Character : public ACharacter
 	TObjectPtr<UCameraComponent> OmegaThirdPersonCamera = nullptr;
 	//end 7_14
 
+	//new 7_28 Omega Serath Runtime Mesh
+
+	UPROPERTY(VisibleAnywhere,
+		BlueprintReadOnly,
+		Category="OmegaDrive|Mesh",
+		meta=(AllowPrivateAccess="true"))
+	TObjectPtr<USkeletalMeshComponent> OmegaSerathMesh = nullptr;
+
+	//end 7_28
+	
+
 	//new 7_14 OmegaDrive Input
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input",
 		meta = (AllowPrivateAccess = "true"))

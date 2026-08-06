@@ -90,6 +90,28 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	OmegaThirdPersonCamera->bUsePawnControlRotation = false;
 	OmegaThirdPersonCamera->SetActive(false);
 
+	//new 8_6 OmegaSerathMesh
+	OmegaSerathMesh =
+	CreateDefaultSubobject<USkeletalMeshComponent>(
+		TEXT("OmegaSerathMesh"));
+
+	//important architectural decision
+	OmegaSerathMesh->SetupAttachment(GetMesh());
+
+	OmegaSerathMesh->SetHiddenInGame(true, true);
+	OmegaSerathMesh->SetVisibility(false, true);
+	OmegaSerathMesh->SetCastShadow(false);
+
+	OmegaSerathMesh->SetCollisionEnabled(
+	ECollisionEnabled::NoCollision);
+
+	UE_LOG(
+	LogTemplateCharacter,
+	Warning,
+	TEXT("[OMEGA] OmegaSerathMesh component created."));
+	
+	//end 8_6
+
 	// The inherited CharacterMesh0 already knows which body Omega uses.
 	// C++ is not selecting Serath here; it is only keeping her hidden
 	// until reality has earned the right to see her.
