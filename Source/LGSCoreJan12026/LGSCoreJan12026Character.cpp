@@ -279,6 +279,76 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 1_23_26
 
+	//new 8_8 Assigning SKM_UEFN_Mannequin and ABP
+	if (USkeletalMeshComponent* MannyMeshComponent = GetMesh())
+	{
+		USkeletalMesh* MannyAsset = LoadObject<USkeletalMesh>(
+			nullptr,
+			TEXT("/Game/Characters/UEFN_Mannequin/Meshes/"
+				 "SKM_UEFN_Mannequin.SKM_UEFN_Mannequin")
+		);
+
+		if (MannyAsset)
+		{
+			MannyMeshComponent->SetSkeletalMesh(MannyAsset);
+
+			UE_LOG(
+				LogTemplateCharacter,
+				Warning,
+				TEXT("[OMEGA LAB] Manny skeletal mesh loaded: %s"),
+				*GetNameSafe(MannyAsset)
+			);
+		}
+		else
+		{
+			UE_LOG(
+				LogTemplateCharacter,
+				Error,
+				TEXT("[OMEGA LAB] FAILED to load SKM_UEFN_Mannequin")
+			);
+		}
+
+		UClass* MannyAnimClass = LoadClass<UAnimInstance>(
+			nullptr,
+			TEXT("/Game/Blueprints/"
+				 "ABP_SandboxCharacter5.ABP_SandboxCharacter5_C")
+		);
+
+		if (MannyAnimClass)
+		{
+			MannyMeshComponent->SetAnimationMode(
+				EAnimationMode::AnimationBlueprint
+			);
+
+			MannyMeshComponent->SetAnimInstanceClass(
+				MannyAnimClass
+			);
+
+			UE_LOG(
+				LogTemplateCharacter,
+				Warning,
+				TEXT("[OMEGA LAB] Manny AnimBP loaded: %s"),
+				*GetNameSafe(MannyAnimClass)
+			);
+		}
+		else
+		{
+			UE_LOG(
+				LogTemplateCharacter,
+				Error,
+				TEXT("[OMEGA LAB] FAILED to load ABP_SandboxCharacter5")
+			);
+		}
+
+		MannyMeshComponent->SetHiddenInGame(true, true);
+		MannyMeshComponent->SetVisibility(false, true);
+
+		MannyMeshComponent->VisibilityBasedAnimTickOption =
+			EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
+		MannyMeshComponent->SetComponentTickEnabled(true);
+	}
+	//end 8_8_Manny and ABP assignment
 
 
 	//new 1_30 combat core
