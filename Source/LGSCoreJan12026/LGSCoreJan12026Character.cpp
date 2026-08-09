@@ -6,7 +6,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-//new 3_12_Sprint
+//3_12_Sprint
 #include "GameFramework/CharacterMovementComponent.h"
 //end 3_12
 //1_19_26
@@ -18,17 +18,17 @@
 #include "InputAction.h"
 #include "LGSShieldComponent.h"
 //end 1_23_26
-//new 1_27
+//1_27
 #include "LGSHyperDriveComponent.h"
 //end 1_27
-//new 4_13 AirWalk
+//4_13 AirWalk
 #include "TimerManager.h"
 #include "LGSAirWalkComponent.h"
 //end 4_13
-//new 4_29OverDrive
+//4_29OverDrive
 #include "LGSOverDriveComponent.h"
 //end 4_29
-//new 7_14 Omega
+//7_14 Omega
 #include "GameFramework/SpringArmComponent.h"
 //end 7_14
 #include "InputActionValue.h"
@@ -51,11 +51,11 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 {
 
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
-	//new 3_12_Sprint
+	//3_12_Sprint
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 	//end 3_12
 
-	//new 3_14
+	//3_14
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	//end 3_14
 
@@ -64,7 +64,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	FirstPersonCameraComponent->SetRelativeLocation(FVector(-10.f, 0.f, 60.f)); // Position the camera
 	FirstPersonCameraComponent->bUsePawnControlRotation = true;
 
-	//new 7_14 OmegaDrive third-person camera
+	//7_14 OmegaDrive third-person camera
 
 	OmegaSpringArm = CreateDefaultSubobject<USpringArmComponent>(
 		TEXT("OmegaSpringArm")
@@ -90,7 +90,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	OmegaThirdPersonCamera->bUsePawnControlRotation = false;
 	OmegaThirdPersonCamera->SetActive(false);
 
-	//new 8_6 OmegaSerathMesh
+	//8_6 OmegaSerathMesh
 	OmegaSerathMesh =
 	CreateDefaultSubobject<USkeletalMeshComponent>(
 		TEXT("OmegaSerathMesh"));
@@ -160,7 +160,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 
 	// RangedWeaponVisual->SetStaticMesh(nullptr);
 	// MeleeWeaponVisual->SetStaticMesh(nullptr);
-	//new 1_30 assign from data assets
+	//1_30 assign from data assets
 	RangedWeaponVisual->SetStaticMesh(nullptr);
 	MeleeWeaponVisual->SetStaticMesh(nullptr);
 	//1_30 end
@@ -200,7 +200,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	HyperDriveComp = CreateDefaultSubobject<ULGSHyperDriveComponent>(TEXT("HyperDriveComp"));
 	//end 1_27_26
 
-	//new 4_29 OverDrive
+	//4_29 OverDrive
 	OverDriveComp = CreateDefaultSubobject<ULGSOverDriveComponent>(TEXT("OverDriveComp"));
 	//end 4_29
 
@@ -212,7 +212,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	GetCharacterMovement()->JumpZVelocity = BaseJumpZ * 1.2f;
 	//end 4_26
 
-	// //new 3_27
+	// //3_27
 	// PrimaryActorTick.bCanEverTick = true;
 	// NormalGravityScale = GetCharacterMovement() ? GetCharacterMovement()->GravityScale : 1.0f;
 	// AirWalkEnergyCurrent = AirWalkEnergyMax;
@@ -279,7 +279,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 1_23_26
 
-	//new 8_8 Assigning SKM_UEFN_Mannequin and ABP
+	//8_8 Assigning SKM_UEFN_Mannequin and ABP
 	if (USkeletalMeshComponent* MannyMeshComponent = GetMesh())
 	{
 		USkeletalMesh* MannyAsset = LoadObject<USkeletalMesh>(
@@ -350,8 +350,39 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 8_8_Manny and ABP assignment
 
+	// new 8_9 - Runtime Serath skeletal mesh assignment only.
+	// No Serath AnimBP yet. No retargeting. No baked animation hookup yet.
+	if (OmegaSerathMesh)
+	{
+		USkeletalMesh* SerathAsset = LoadObject<USkeletalMesh>(
+			nullptr,
+			TEXT("/Game/ParagonSerath/Characters/Heroes/Serath/Meshes/Serath.Serath")
+		);
 
-	//new 1_30 combat core
+		if (SerathAsset)
+		{
+			OmegaSerathMesh->SetSkeletalMesh(SerathAsset);
+
+			UE_LOG(
+				LogTemplateCharacter,
+				Warning,
+				TEXT("[OMEGA LAB] Serath skeletal mesh loaded: %s"),
+				*GetNameSafe(SerathAsset)
+			);
+		}
+		else
+		{
+			UE_LOG(
+				LogTemplateCharacter,
+				Error,
+				TEXT("[OMEGA LAB] FAILED to load Serath skeletal mesh")
+			);
+		}
+	}
+	//end 8_9 Serath OmegaSerathMesh C++, avoid serialization, SAVE ALL
+
+
+	//1_30 combat core
 
 	if (CombatCore)
 	{
@@ -424,7 +455,7 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 		//end2_18 autofire
 		//end 5_15 EventHorizon charge enablement
 
-		//new 3_12_Sprint
+		//3_12_Sprint
 		if (SprintAction)
 		{
 			EnhancedInputComponent->BindAction(
@@ -465,7 +496,7 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 			);
 		}
 
-		//new 7_14 OmegaDrive Input
+		//7_14 OmegaDrive Input
 		if (OmegaDriveAction)
 		{
 			EnhancedInputComponent->BindAction(
@@ -524,7 +555,7 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 		//end 1_23_26
 
 
-		//new 1_23_26 Shield Toggle
+		//1_23_26 Shield Toggle
 		if (ToggleShieldAction)
 		{
 			EnhancedInputComponent->BindAction(
@@ -536,7 +567,7 @@ void ALGSCoreJan12026Character::SetupPlayerInputComponent(UInputComponent* Playe
 		}
 		//end 1_23_26
 
-		//new 3_27 Air Walk
+		//3_27 Air Walk
 		if (AirWalkAction)
 		{
 			EnhancedInputComponent->BindAction(
@@ -584,7 +615,7 @@ void ALGSCoreJan12026Character::Move(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	//new 4_15 AirWalkUpdate
+	//4_15 AirWalkUpdate
 	LastMoveInput = MovementVector;
 	//end 4_15
 
@@ -609,7 +640,7 @@ void ALGSCoreJan12026Character::Look(const FInputActionValue& Value)
 	}
 }
 
-//new 3_12_Sprint
+//3_12_Sprint
 void ALGSCoreJan12026Character::OnSprintStarted()
 {
 	bSprintHeld = true;
@@ -655,7 +686,7 @@ void ALGSCoreJan12026Character::UpdateSprintState()
 }
 //end 3_12_Sprint updated for Omega deterministic movement 7_14
 
-//new 3_14 crouch
+//3_14 crouch
 void ALGSCoreJan12026Character::OnCrouchStarted()
 {
 	Crouch();
@@ -685,7 +716,7 @@ bool ALGSCoreJan12026Character::IsAirWalkActive() const
 }
 
 
-//new 7_14 Omega
+//7_14 Omega
 void ALGSCoreJan12026Character::OnOmegaDrivePressed()
 {
 	if (bOmegaDriveActive)
@@ -975,7 +1006,7 @@ void ALGSCoreJan12026Character::ApplyWeaponVisualsForMode(ECombatMode NewMode)
 }
 
 
-//new combat core 1_30 socket
+//combat core 1_30 socket
 const FName ALGSCoreJan12026Character::WeaponSocketName(TEXT("WeaponSocket_R"));
 //end 1_30
 
@@ -996,7 +1027,7 @@ void ALGSCoreJan12026Character::OnToggleShieldPressed()
 
 //end 1_23_26
 
-//new 4_14_AirWalk
+//4_14_AirWalk
 void ALGSCoreJan12026Character::OnAirWalkStarted()
 {
 	if (AirWalkComp)
@@ -1018,7 +1049,7 @@ void ALGSCoreJan12026Character::OnAirWalkReleased()
 }
 //end 4_14
 
-//new 4_15 Airwalk Update
+//4_15 Airwalk Update
 void ALGSCoreJan12026Character::CancelSprintForAirWalk()
 {
 	bSprintHeld = false;
@@ -1029,8 +1060,8 @@ void ALGSCoreJan12026Character::CancelSprintForAirWalk()
 //end 4_15
 
 //HyperDrive 1_27_26:  Careful adding HyperRail 
-//new 3_27 AirWalk
-//new HyperDrive 1_27_26:  Careful adding HyperRail
+//3_27 AirWalk
+//HyperDrive 1_27_26:  Careful adding HyperRail
 void ALGSCoreJan12026Character::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
@@ -1047,7 +1078,7 @@ void ALGSCoreJan12026Character::Landed(const FHitResult& Hit)
 }
 //end 1_27_26 & 3_27
 
-//new 5_15 EventHorizon Enablement
+//5_15 EventHorizon Enablement
 void ALGSCoreJan12026Character::OnPrimaryStarted()
 {
 	if (CombatCore && !CombatCore->IsRangedMode())
@@ -1065,7 +1096,7 @@ void ALGSCoreJan12026Character::OnPrimaryStarted()
 	}
 }
 
-//new 5_15 updated So quick click is normal Swing, while hold is EH
+//5_15 updated So quick click is normal Swing, while hold is EH
 void ALGSCoreJan12026Character::OnPrimaryReleased()
 {
 	if (CombatCore && !CombatCore->IsRangedMode())
@@ -1093,7 +1124,7 @@ void ALGSCoreJan12026Character::OnPrimaryReleased()
 }
 //end 5_15
 
-//new 7_14 OmegaDrive First Pass
+//7_14 OmegaDrive First Pass
 
 bool ALGSCoreJan12026Character::IsOmegaDriveReady() const
 {
