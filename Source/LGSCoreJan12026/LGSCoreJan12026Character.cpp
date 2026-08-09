@@ -98,6 +98,13 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	//important architectural decision
 	OmegaSerathMesh->SetupAttachment(GetMesh());
 
+	//8_9 add tag to avoid error and mimic retargeting chain
+	// ABP_Generic5Serath expects ComponentTags[0] to exist.
+	// Preserve the tag used by the original retargeted character setup.
+	OmegaSerathMesh->ComponentTags.AddUnique(
+		FName(TEXT("RTG_UEFN_to_TwinBlast"))
+	);
+
 	OmegaSerathMesh->SetHiddenInGame(true, true);
 	OmegaSerathMesh->SetVisibility(false, true);
 	OmegaSerathMesh->SetCastShadow(false);
@@ -380,6 +387,39 @@ void ALGSCoreJan12026Character::BeginPlay()
 		}
 	}
 	//end 8_9 Serath OmegaSerathMesh C++, avoid serialization, SAVE ALL
+
+	//new 8_9_ adding ABP_Generic5Serath as ABP avoiding serialization
+	UClass* SerathAnimClass = LoadClass<UAnimInstance>(
+	nullptr,
+	TEXT("/Game/Blueprints/RetargetedCharacters/"
+		 "ABP_Generic5Serath.ABP_Generic5Serath_C")
+);
+
+	if (SerathAnimClass)
+	{
+		OmegaSerathMesh->SetAnimationMode(
+			EAnimationMode::AnimationBlueprint
+		);
+
+		OmegaSerathMesh->SetAnimInstanceClass(
+			SerathAnimClass
+		);
+
+		UE_LOG(
+			LogTemplateCharacter,
+			Warning,
+			TEXT("[OMEGA LAB] Serath AnimBP loaded: %s"),
+			*GetNameSafe(SerathAnimClass)
+		);
+	}
+	else
+	{
+		UE_LOG(
+			LogTemplateCharacter,
+			Error,
+			TEXT("[OMEGA LAB] FAILED to load ABP_Generic5Serath")
+		);
+	}
 
 
 	//1_30 combat core
