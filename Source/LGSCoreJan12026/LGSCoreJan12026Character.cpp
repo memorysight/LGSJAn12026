@@ -105,8 +105,9 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 		FName(TEXT("RTG_UEFN_to_TwinBlast"))
 	);
 
-	OmegaSerathMesh->SetHiddenInGame(true, true);
-	OmegaSerathMesh->SetVisibility(false, true);
+	//new 8_9 for Serath Visibility, avoid visibility calls to children
+	OmegaSerathMesh->SetHiddenInGame(false, false);
+	OmegaSerathMesh->SetVisibility(true, false);
 	OmegaSerathMesh->SetCastShadow(false);
 
 	OmegaSerathMesh->SetCollisionEnabled(
@@ -122,10 +123,11 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	// The inherited CharacterMesh0 already knows which body Omega uses.
 	// C++ is not selecting Serath here; it is only keeping her hidden
 	// until reality has earned the right to see her.
+	//new 8_9 reality has earned the right to see her
 	if (GetMesh())
 	{
-		GetMesh()->SetHiddenInGame(true, true);
-		GetMesh()->SetVisibility(false, true);
+		GetMesh()->SetHiddenInGame(true, false);
+		GetMesh()->SetVisibility(false, false);
 		GetMesh()->SetOwnerNoSee(false);
 		GetMesh()->SetOnlyOwnerSee(false);
 	}
@@ -843,10 +845,21 @@ void ALGSCoreJan12026Character::ActivateOmegaDrive()
 		MeleeWeaponVisual->SetVisibility(false, true);
 	}
 
-	// Today: Serath.
-	// Tomorrow: the holographic body that finally learned how to leave Blender.
-	GetMesh()->SetHiddenInGame(false, true);
-	GetMesh()->SetVisibility(true, true);
+	// new_8_9 Manny - Serath visibility task
+	// 
+	// Manny remains alive as the hidden animation source.
+	if (GetMesh())
+	{
+		GetMesh()->SetHiddenInGame(true, false);
+		GetMesh()->SetVisibility(false, false);
+	}
+
+	// Serath is the visible Omega body.
+	if (OmegaSerathMesh)
+	{
+		OmegaSerathMesh->SetHiddenInGame(false, false);
+		OmegaSerathMesh->SetVisibility(true, false);
+	}
 
 	FirstPersonCameraComponent->SetActive(false);
 	OmegaThirdPersonCamera->SetActive(true);
@@ -920,10 +933,20 @@ void ALGSCoreJan12026Character::DeactivateOmegaDrive()
 		FirstPersonCameraComponent->SetActive(true);
 	}
 
+
+	//new 8_9 Manny - Serath task 
+	// Manny stays hidden; he remains only the animation source.
 	if (GetMesh())
 	{
-		GetMesh()->SetHiddenInGame(true, true);
-		GetMesh()->SetVisibility(false, true);
+		GetMesh()->SetHiddenInGame(true, false);
+		GetMesh()->SetVisibility(false, false);
+	}
+
+	// Omega presentation body disappears.
+	if (OmegaSerathMesh)
+	{
+		OmegaSerathMesh->SetHiddenInGame(true, false);
+		OmegaSerathMesh->SetVisibility(false, false);
 	}
 
 	if (Mesh1P)
