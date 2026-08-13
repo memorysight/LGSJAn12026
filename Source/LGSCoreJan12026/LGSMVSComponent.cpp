@@ -1,34 +1,58 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "LGSMVSComponent.h"
 
-// Sets default values for this component's properties
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
+
+
 ULGSMVSComponent::ULGSMVSComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 
-// Called when the game starts
 void ULGSMVSComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
-	
+	UE_LOG(LogTemp, Log, TEXT("LGS MVS Component Online"));
 }
 
 
-// Called every frame
-void ULGSMVSComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void ULGSMVSComponent::StartMusic()
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (!BaseComposition)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MVS: No BaseComposition assigned."));
+		return;
+	}
 
-	// ...
+	if (BaseAudioComponent && BaseAudioComponent->IsPlaying())
+	{
+		return;
+	}
+
+	BaseAudioComponent = UGameplayStatics::SpawnSound2D(
+		this,
+		BaseComposition
+	);
+
+	if (BaseAudioComponent)
+	{
+		UE_LOG(LogTemp, Log, TEXT("MVS: Base composition started."));
+	}
 }
 
+
+void ULGSMVSComponent::StopMusic()
+{
+	if (!BaseAudioComponent)
+	{
+		return;
+	}
+
+	BaseAudioComponent->Stop();
+	BaseAudioComponent = nullptr;
+
+	UE_LOG(LogTemp, Log, TEXT("MVS: Base composition stopped."));
+}
