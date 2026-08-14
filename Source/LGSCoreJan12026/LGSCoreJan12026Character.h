@@ -10,6 +10,9 @@
 //new 7_14_Omega
 class USpringArmComponent;
 //end 7_14
+//new 8_14 MVS
+class ULGSMVSComponent;
+//end 8_14 MVS
 //1/4/26
 #include "LGSWeaponDataAsset.h"
 #include "InputMappingContext.h"
@@ -116,6 +119,13 @@ class ALGSCoreJan12026Character : public ACharacter
 	TObjectPtr<USkeletalMeshComponent> OmegaSerathMesh = nullptr;
 
 	//end 7_28
+
+	//new 8_14 MVS First Music in LGS
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MVS",
+	meta=(AllowPrivateAccess="true"))
+	TObjectPtr<ULGSMVSComponent> MVSComponent;
+	//end 8_14
+	
 	
 
 	//new 7_14 OmegaDrive Input

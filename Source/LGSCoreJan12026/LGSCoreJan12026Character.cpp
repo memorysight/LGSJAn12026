@@ -31,6 +31,9 @@
 //7_14 Omega
 #include "GameFramework/SpringArmComponent.h"
 //end 7_14
+//new 8_14 MVS
+#include "LGSMVSComponent.h"
+//end 8_14
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 //1/2/26
@@ -119,6 +122,11 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	TEXT("[OMEGA] OmegaSerathMesh component created."));
 	
 	//end 8_6
+
+	//new 8_14 MVS
+	MVSComponent =
+	CreateDefaultSubobject<ULGSMVSComponent>(TEXT("MVSComponent"));
+	//end 8_14
 
 	// The inherited CharacterMesh0 already knows which body Omega uses.
 	// C++ is not selecting Serath here; it is only keeping her hidden
