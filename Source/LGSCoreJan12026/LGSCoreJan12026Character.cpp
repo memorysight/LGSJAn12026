@@ -456,6 +456,28 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 1_23_26
 
+	//new 8_14 First MVS composition playback:  StopCallingI'mBusy!
+	if (MVSComponent)
+	{
+		MVSComponent->StartMusic();
+
+		UE_LOG(
+			LogTemplateCharacter,
+			Warning,
+			TEXT("[MVS] StartMusic requested from Character BeginPlay")
+		);
+	}
+	else
+	{
+		UE_LOG(
+			LogTemplateCharacter,
+			Error,
+			TEXT("[MVS] MVSComponent is NULL in Character BeginPlay")
+		);
+	}
+	//end 8_14 First MVS composition playback
+	
+
 }
 
 
