@@ -1,20 +1,23 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 using UnrealBuildTool;
 
-//9_3 update changes for Unreal SpringBoot WebSocketsDTO 
+//9_3_Updates for Unreal To WebSockets->SpringBoot Communication!
 public class LGSCoreJan12026 : ModuleRules
 {
 	public LGSCoreJan12026(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara" });
-		
-		PrivateDependencyModuleNames.AddRange(new string[] {
-			"WebSockets" 
+		PublicDependencyModuleNames.AddRange(new string[] {
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"InputCore", 
+			"WebSockets",    
+			"Json",          
+			"JsonUtilities", 
+			"Niagara",       
+			"EnhancedInput"  
 		});
-
 		
 	}
 }
