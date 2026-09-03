@@ -2,8 +2,7 @@
 
 using UnrealBuildTool;
 
-
-//1_30 update changes
+//9_3 update changes for Unreal SpringBoot WebSocketsDTO 
 public class LGSCoreJan12026 : ModuleRules
 {
 	public LGSCoreJan12026(ReadOnlyTargetRules Target) : base(Target)
@@ -11,5 +10,11 @@ public class LGSCoreJan12026 : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara" });
+		
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"WebSockets" 
+		});
+
+		
 	}
 }
