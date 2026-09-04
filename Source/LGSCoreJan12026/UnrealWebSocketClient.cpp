@@ -110,4 +110,9 @@ void UUnrealWebSocketClient::OnMessage(const FString& Message)
 {
 // This is where you would handle incoming messages from Spring Boot, if any
 UE_LOG(LogTemp, Log, TEXT("Received WebSocket Message: %s"), *Message);
+
+	//9_4_Broadcast the Delegate enabling BPs to Respond!  Critical 
+	OnMessageReceivedDelegate.Broadcast(Message);
 }
+
+

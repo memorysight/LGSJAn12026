@@ -7,6 +7,9 @@
 #include "UnrealWebSocketClient.generated.h" // Generated header must be last
 
 
+//new 9_4 Dynamic multicast delegate for BP Subscription
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWebSocketMessageReceived, const FString&, Message);
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class LGSCOREJAN12026_API UUnrealWebSocketClient : public UActorComponent
 {
@@ -44,7 +47,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "WebSockets")
 	void SendGameStateUpdate(FString GameStateName, FString EventType, FString Message);
 
+	//new 9_4 Delegate Declarations for BP
+	// This delegate will be broadcast when a message is received, allowing Blueprints to react
+	UPROPERTY(BlueprintAssignable, Category = "WebSockets")
+	FOnWebSocketMessageReceived OnMessageReceivedDelegate; // <-- Renamed to avoid confusion with the internal OnMessage function
+	
 
+	
 protected:
 	// WebSocket Delegates
 	void OnConnected();
