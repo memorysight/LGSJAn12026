@@ -11,13 +11,21 @@ PrimaryComponentTick.bCanEverTick = false; // We don't need Tick for this exampl
 }
 
 
-// Called when the game starts
 void UUnrealWebSocketClient::BeginPlay()
 {
-Super::BeginPlay();
+	Super::BeginPlay();
 
-// Automatically connect when the component starts
-ConnectToWebSocket();
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			10.0f,
+			FColor::Cyan,
+			TEXT("WEBSOCKET COMPONENT BEGINPLAY DAMMIT")
+		);
+	}
+
+	ConnectToWebSocket();
 }
 
 void UUnrealWebSocketClient::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -36,36 +44,69 @@ void UUnrealWebSocketClient::TickComponent(float DeltaTime, ELevelTick TickType,
 
 void UUnrealWebSocketClient::ConnectToWebSocket()
 {
-if (!FModuleManager::Get().IsModuleLoaded("WebSockets"))
-{
-FModuleManager::Get().LoadModule("WebSockets");
-}
+	if (!FModuleManager::Get().IsModuleLoaded("WebSockets"))
+	{
+	FModuleManager::Get().LoadModule("WebSockets");
 
-WebSocket = FWebSocketsModule::Get().CreateWebSocket(WebSocketUrl);
+	}
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			10.0f,
+			FColor::Yellow,
+			FString::Printf(
+				TEXT("CONNECTING TO: %s"),
+				*WebSocketUrl
+			)
+		);
+	}
+	
+	WebSocket = FWebSocketsModule::Get().CreateWebSocket(WebSocketUrl);
 
-// Bind delegates
-WebSocket->OnConnected().AddUObject(this, &UUnrealWebSocketClient::OnConnected);
-WebSocket->OnConnectionError().AddUObject(this, &UUnrealWebSocketClient::OnConnectionError);
-WebSocket->OnClosed().AddUObject(this, &UUnrealWebSocketClient::OnClosed);
-WebSocket->OnMessage().AddUObject(this, &UUnrealWebSocketClient::OnMessage);
+	// Bind delegates
+	WebSocket->OnConnected().AddUObject(
+		this,
+		&UUnrealWebSocketClient::OnConnected
+		);
+	
+	WebSocket->OnConnectionError().AddUObject(
+		this,
+		&UUnrealWebSocketClient::OnConnectionError
+		);
+	
+	WebSocket->OnClosed().AddUObject(
+		this,
+		&UUnrealWebSocketClient::OnClosed
+		);
+	
+	WebSocket->OnMessage().AddUObject(
+		this,
+		&UUnrealWebSocketClient::OnMessage
+		);
 
-// Connect to the server
-WebSocket->Connect();
+	// Connect to the server
+	WebSocket->Connect();
 
-UE_LOG(LogTemp, Log, TEXT("Attempting to connect to WebSocket: %s"), *WebSocketUrl);
-}
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Attempting to connect to WebSocket (hold): %s"),
+		*WebSocketUrl
+		);
+	}
 
-void UUnrealWebSocketClient::DisconnectFromWebSocket()
-{
-if (WebSocket.IsValid() && WebSocket->IsConnected())
-{
-WebSocket->Close();
-UE_LOG(LogTemp, Log, TEXT("Disconnected from WebSocket."));
-}
+	void UUnrealWebSocketClient::DisconnectFromWebSocket()
+	{
+	if (WebSocket.IsValid() && WebSocket->IsConnected())
+	{
+	WebSocket->Close();
+		UE_LOG(LogTemp, Log, TEXT("Disconnected from WebSocket."));
+	}
 }
 
 void UUnrealWebSocketClient::SendGameStateUpdate(FString GameStateName, FString EventType, FString Message)
-{
+	{
 if (WebSocket.IsValid() && WebSocket->IsConnected())
 {
 TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
@@ -87,18 +128,45 @@ UE_LOG(LogTemp, Log, TEXT("Sent WebSocket message: %s"), *OutputString);
 }
 else
 {
-UE_LOG(LogTemp, Warning, TEXT("WebSocket not connected. Cannot send message."));
+UE_LOG(LogTemp, Warning, TEXT("WebSocket not connected. Cannot send message, crybaby!!."));
 }
 }
 
 void UUnrealWebSocketClient::OnConnected()
 {
-UE_LOG(LogTemp, Log, TEXT("WebSocket Connected!"));
+	UE_LOG(LogTemp, Warning, TEXT("WebSocket Connected FINALLY!"));
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			10.0f,
+			FColor::Green,
+			TEXT("WEB SOCKET CONNECTED FINALLY!")
+		);
+	}
 }
 
 void UUnrealWebSocketClient::OnConnectionError(const FString& Error)
 {
-UE_LOG(LogTemp, Error, TEXT("WebSocket Connection Error: %s"), *Error);
+	UE_LOG(
+		LogTemp,
+		Error,
+		TEXT("WebSocket Connection Error: %s"),
+		*Error
+		);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			15.0f,
+			FColor::Red,
+			FString::Printf(
+				TEXT("WEB SOCKET ERROR: %s"),
+				*Error
+			)
+		);
+	}
 }
 
 void UUnrealWebSocketClient::OnClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
@@ -114,5 +182,8 @@ UE_LOG(LogTemp, Log, TEXT("Received WebSocket Message: %s"), *Message);
 	//9_4_Broadcast the Delegate enabling BPs to Respond!  Critical 
 	OnMessageReceivedDelegate.Broadcast(Message);
 }
+
+
+
 
 
