@@ -42,66 +42,75 @@ void UUnrealWebSocketClient::TickComponent(float DeltaTime, ELevelTick TickType,
 	// No tick logic needed for this component, as PrimaryComponentTick.bCanEverTick is false
 }
 
+//9_4 this will tell us its secrets!  
 void UUnrealWebSocketClient::ConnectToWebSocket()
 {
 	if (!FModuleManager::Get().IsModuleLoaded("WebSockets"))
 	{
-	FModuleManager::Get().LoadModule("WebSockets");
-
+		FModuleManager::Get().LoadModule("WebSockets");
 	}
+
+	const FString CleanUrl = WebSocketUrl.TrimStartAndEnd();
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
 			-1,
-			10.0f,
+			15.0f,
 			FColor::Yellow,
 			FString::Printf(
-				TEXT("CONNECTING TO: %s"),
-				*WebSocketUrl
+				TEXT("CONNECTING TO [%s] LEN=%d"),
+				*CleanUrl,
+				CleanUrl.Len()
 			)
 		);
 	}
-	
-	WebSocket = FWebSocketsModule::Get().CreateWebSocket(WebSocketUrl);
 
-	// Bind delegates
+	WebSocket = FWebSocketsModule::Get().CreateWebSocket(CleanUrl);
+
 	WebSocket->OnConnected().AddUObject(
 		this,
 		&UUnrealWebSocketClient::OnConnected
-		);
-	
+	);
+
 	WebSocket->OnConnectionError().AddUObject(
 		this,
 		&UUnrealWebSocketClient::OnConnectionError
-		);
-	
+	);
+
 	WebSocket->OnClosed().AddUObject(
 		this,
 		&UUnrealWebSocketClient::OnClosed
-		);
-	
+	);
+
 	WebSocket->OnMessage().AddUObject(
 		this,
 		&UUnrealWebSocketClient::OnMessage
-		);
+	);
 
-	// Connect to the server
 	WebSocket->Connect();
 
 	UE_LOG(
 		LogTemp,
 		Warning,
-		TEXT("Attempting to connect to WebSocket (hold): %s"),
-		*WebSocketUrl
-		);
-	}
+		TEXT("Attempting to connect to WebSocket: [%s], Len=%d"),
+		*CleanUrl,
+		CleanUrl.Len()
+	);
+}
 
-	void UUnrealWebSocketClient::DisconnectFromWebSocket()
-	{
+//new 9_4 Dont forget to bring your towel...
+void UUnrealWebSocketClient::DisconnectFromWebSocket()
+{
 	if (WebSocket.IsValid() && WebSocket->IsConnected())
 	{
-	WebSocket->Close();
-		UE_LOG(LogTemp, Log, TEXT("Disconnected from WebSocket."));
+		WebSocket->Close();
+
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT("Disconnected from WebSocket.")
+		);
 	}
 }
 
