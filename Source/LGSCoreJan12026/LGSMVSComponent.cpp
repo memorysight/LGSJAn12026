@@ -54,5 +54,5 @@ void ULGSMVSComponent::StopMusic()
 	BaseAudioComponent->Stop();
 	BaseAudioComponent = nullptr;
 
-	UE_LOG(LogTemp, Log, TEXT("MVS: Base composition stopped."));
+	UE_LOG(LogTemp, Log, TEXT("MVS: Base composition stopped ."));
 }
