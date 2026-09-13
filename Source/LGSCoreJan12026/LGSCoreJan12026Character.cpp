@@ -769,16 +769,35 @@ void ALGSCoreJan12026Character::OnCrouchStarted()
 		UpdateSprintState();
 	}
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Crouch Start crouched=%d"),
-		bIsCrouched ? 1 : 0);
+	if (MVSComponent)
+	{
+		MVSComponent->SetCrouchStemActive(true);
+	}
+
+	UE_LOG(
+		LogTemplateCharacter,
+		Warning,
+		TEXT("[MOVE] Crouch Start crouched=%d"),
+		bIsCrouched ? 1 : 0
+	);
 }
+
 
 void ALGSCoreJan12026Character::OnCrouchReleased()
 {
 	UnCrouch();
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Crouch Stop crouched=%d"),
-		bIsCrouched ? 1 : 0);
+	if (MVSComponent)
+	{
+		MVSComponent->SetCrouchStemActive(false);
+	}
+
+	UE_LOG(
+		LogTemplateCharacter,
+		Warning,
+		TEXT("[MOVE] Crouch Stop crouched=%d"),
+		bIsCrouched ? 1 : 0
+	);
 }
 
 

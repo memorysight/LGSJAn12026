@@ -13,36 +13,162 @@ class LGSCOREJAN12026_API ULGSMVSComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
+
 public:
 
 	ULGSMVSComponent();
+
 
 protected:
 
 	virtual void BeginPlay() override;
 
 
-	// --------------------------------------------------------
-	// FIRST MVS COMPOSITION
-	// --------------------------------------------------------
+	// ========================================================
+	// STANDALONE MUSIC
+	//
+	// This is NOT part of MVS.
+	//
+	// Use this when a level simply wants to play one complete
+	// bounced composition.
+	// ========================================================
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="MVS|Composition")
-	TObjectPtr<USoundBase> BaseComposition = nullptr;
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Standalone"
+	)
+	TObjectPtr<USoundBase> StandaloneComposition = nullptr;
 
 
 	UPROPERTY(Transient)
-	TObjectPtr<UAudioComponent> BaseAudioComponent = nullptr;
+	TObjectPtr<UAudioComponent> StandaloneAudioComponent = nullptr;
+
+
+
+	// ========================================================
+	// EMPTY DISCLOSURES - MVP1
+	// ========================================================
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Empty Disclosures"
+	)
+	TObjectPtr<USoundBase> EmptyDisclosuresBaseStem = nullptr;
+
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Empty Disclosures"
+	)
+	TObjectPtr<USoundBase> EmptyDisclosuresCrouchStem = nullptr;
+
+
+
+	// ========================================================
+	// RUNTIME MVS COMPONENTS
+	// ========================================================
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> BaseStemAudioComponent = nullptr;
+
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> CrouchStemAudioComponent = nullptr;
+
+
+
+	// ========================================================
+	// MVP1 MIX SETTINGS
+	// ========================================================
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0", ClampMax="1.0")
+	)
+	float BaseStemVolume = 1.0f;
+
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0", ClampMax="1.0")
+	)
+	float CrouchStemVolume = 1.0f;
+
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0")
+	)
+	float StemFadeTime = 0.15f;
+
+
+
+private:
+
+	bool bMVSPlaying = false;
+
+	bool bCrouchStemAudible = false;
+
 
 
 public:
 
-	// --------------------------------------------------------
-	// PLAYBACK  
-	// --------------------------------------------------------
+	// ========================================================
+	// STANDALONE PLAYBACK
+	// ========================================================
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Standalone")
+	void PlayStandaloneComposition();
+
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Standalone")
+	void StopStandaloneComposition();
+
+
+
+	// ========================================================
+	// MVS PLAYBACK
+	// ========================================================
 
 	UFUNCTION(BlueprintCallable, Category="MVS|Playback")
 	void StartMusic();
 
+
 	UFUNCTION(BlueprintCallable, Category="MVS|Playback")
-	void StopMusic();
+	void StopMVS();
+
+
+	UFUNCTION(BlueprintPure, Category="MVS|Playback")
+	bool IsMVSPlaying() const;
+
+
+
+	// ========================================================
+	// MVP1 - CROUCH
+	// ========================================================
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Abilities")
+	void SetCrouchStemActive(bool bActive);
+
+
+	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
+	bool IsCrouchStemActive() const;
+
+
+
+	// ========================================================
+	// DEBUG
+	// ========================================================
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Debug")
+	void DebugPrintMVSState() const;
 };
