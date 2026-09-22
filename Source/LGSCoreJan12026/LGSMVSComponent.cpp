@@ -5,6 +5,14 @@
 #include "Sound/SoundBase.h"
 
 
+
+
+//2nd round of edits
+namespace
+{
+	constexpr float MVSStemSilentVolume = 0.001f;
+}
+
 ULGSMVSComponent::ULGSMVSComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -154,8 +162,9 @@ void ULGSMVSComponent::StartMusic()
 				EmptyDisclosuresCrouchStem,
 				
 				//Tiny 'keep-alive' level
+				//9_22_2nd round actually use 'keep alive value from 0.0f to 1.0f
 				//Effectively inaudible, BUT avoids starting the voice at exact zero
-				0.0f,
+				MVSStemSilentVolume,
 				1.0f,
 				0.0f,
 				nullptr,
@@ -163,7 +172,7 @@ void ULGSMVSComponent::StartMusic()
 				false
 			);
 
-		//new 9_13 establish timeline
+		//9_13 establish timeline
 		UE_LOG(
 		LogTemp,
 		Warning,
@@ -178,14 +187,45 @@ void ULGSMVSComponent::StartMusic()
 
 	}
 
+	//new 9_22 shield
+	//9_22_2nd round actually use 'keep alive value from 0.0f to 1.0f
+	if (EmptyDisclosuresShieldStem)
+	{
+		ShieldStemAudioComponent =
+			UGameplayStatics::SpawnSound2D(
+				this,
+				EmptyDisclosuresShieldStem,
+				MVSStemSilentVolume,
+				1.0f,
+				0.0f,
+				nullptr,
+				true,
+				false
+			);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("MVS SHIELD SPAWN: Component=%s IsPlaying=%d Volume=%.3f"),
+			*GetNameSafe(ShieldStemAudioComponent),
+			ShieldStemAudioComponent &&
+			ShieldStemAudioComponent->IsPlaying() ? 1 : 0,
+			ShieldStemAudioComponent
+				? ShieldStemAudioComponent->VolumeMultiplier
+				: -1.0f
+		);
+	}
+
 	
 	bMVSPlaying = true;
 	bCrouchStemAudible = false;
+	//new 9_22 shield
+	bShieldStemAudible = false;
 
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("MVS MVP1 STARTED - Base + silent Crouch stem.")
+		TEXT("MVS MVP2 STARTED - Base + Crouch + Shield stems.  New Sonic Landscapes Explored!!")
 	);
 }
 
@@ -209,9 +249,18 @@ void ULGSMVSComponent::StopMVS()
 		CrouchStemAudioComponent = nullptr;
 	}
 
+	//new 9_22 shield
+	if (ShieldStemAudioComponent)
+	{
+		ShieldStemAudioComponent->Stop();
+		ShieldStemAudioComponent = nullptr;
+	}
+
 
 	bMVSPlaying = false;
 	bCrouchStemAudible = false;
+	//new 9_22 shield
+	bShieldStemAudible = false;
 
 
 	UE_LOG(
@@ -308,9 +357,10 @@ void ULGSMVSComponent::SetCrouchStemActive(bool bActive)
 			TEXT("MVS: CROUCH STEM AUDIBLE")
 		);
 	}
+	//new 9_22 2nd Round edits change from 0.0f to MVSStemSilentVolume
 	else
 	{
-		CrouchStemAudioComponent->SetVolumeMultiplier(0.0f);
+		CrouchStemAudioComponent->SetVolumeMultiplier(MVSStemSilentVolume);
 
 		UE_LOG(
 			LogTemp,
@@ -328,11 +378,114 @@ void ULGSMVSComponent::SetCrouchStemActive(bool bActive)
 	}
 }
 
+//new 9_22
+// ============================================================
+// SHIELD
+// ============================================================
+
+void ULGSMVSComponent::SetShieldStemActive(bool bActive)
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("MVS SetShieldStemActive called: %s"),
+        bActive ? TEXT("TRUE") : TEXT("FALSE")
+    );
+
+    if (!bMVSPlaying)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS: Shield state received before MVS started.")
+        );
+
+        return;
+    }
+
+    if (!ShieldStemAudioComponent)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS: No Shield Stem Audio Component.")
+        );
+
+        return;
+    }
+
+    // Don't repeatedly issue identical volume commands.
+    if (bShieldStemAudible == bActive)
+    {
+        return;
+    }
+
+    bShieldStemAudible = bActive;
+
+    if (bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS SHIELD before unmute: IsPlaying=%d Volume=%.3f"),
+            ShieldStemAudioComponent->IsPlaying() ? 1 : 0,
+            ShieldStemAudioComponent->VolumeMultiplier
+        );
+
+        // Instant mixer change.
+        // Does NOT restart playback.
+        ShieldStemAudioComponent->SetVolumeMultiplier(
+            ShieldStemVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS SHIELD AFTER SetVolumeMultiplier: IsPlaying=%d Volume=%.3f Target=%.3f"),
+            ShieldStemAudioComponent->IsPlaying() ? 1 : 0,
+            ShieldStemAudioComponent->VolumeMultiplier,
+            ShieldStemVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Log,
+            TEXT("MVS: SHIELD STEM AUDIBLE")
+        );
+    }
+	//9_22_2nd round changed from 0.0f to MVSStemSilentVolume
+    else
+    {
+        ShieldStemAudioComponent->SetVolumeMultiplier(MVSStemSilentVolume);
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS SHIELD AFTER mute: IsPlaying=%d Volume=%.3f"),
+            ShieldStemAudioComponent->IsPlaying() ? 1 : 0,
+            ShieldStemAudioComponent->VolumeMultiplier
+        );
+
+        UE_LOG(
+            LogTemp,
+            Log,
+            TEXT("MVS: SHIELD STEM MUTED")
+        );
+    }
+}
+
 
 bool ULGSMVSComponent::IsCrouchStemActive() const
 {
 	return bCrouchStemAudible;
 }
+
+//new 9_22
+bool ULGSMVSComponent::IsShieldStemActive() const
+{
+	return bShieldStemAudible;
+}
+
 
 
 // ============================================================

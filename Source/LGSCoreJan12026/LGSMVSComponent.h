@@ -65,8 +65,18 @@ protected:
 	)
 	TObjectPtr<USoundBase> EmptyDisclosuresCrouchStem = nullptr;
 
+	//new 9_22 Shield
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Empty Disclosures"
+)
+	TObjectPtr<USoundBase> EmptyDisclosuresShieldStem = nullptr;
 
 
+
+	
 	// ========================================================
 	// RUNTIME MVS COMPONENTS
 	// ========================================================
@@ -77,6 +87,11 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> CrouchStemAudioComponent = nullptr;
+
+	//new 9_22
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> ShieldStemAudioComponent = nullptr;
 
 
 
@@ -101,6 +116,15 @@ protected:
 	)
 	float CrouchStemVolume = 1.0f;
 
+	//new 9_22 shield
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0", ClampMax="1.0")
+)
+	float ShieldStemVolume = 1.0f;
+
 
 	UPROPERTY(
 		EditAnywhere,
@@ -117,6 +141,10 @@ private:
 	bool bMVSPlaying = false;
 
 	bool bCrouchStemAudible = false;
+
+	//new 9_22 shield
+
+	bool bShieldStemAudible = false;
 
 
 
@@ -162,6 +190,18 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsCrouchStemActive() const;
+
+	//new 9_22
+
+	// ========================================================
+	// MVP2 - SHIELD
+	// ========================================================
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Abilities")
+	void SetShieldStemActive(bool bActive);
+
+	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
+	bool IsShieldStemActive() const;
 
 
 
