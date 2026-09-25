@@ -363,5 +363,12 @@ public:
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
 
+	//new 9_25 Airwalk Helper
+	ULGSMVSComponent* GetMVSComponent() const
+	{
+		return MVSComponent;
+	}
+
+	
 };
 

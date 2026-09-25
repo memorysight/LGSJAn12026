@@ -65,7 +65,7 @@ protected:
 	)
 	TObjectPtr<USoundBase> EmptyDisclosuresCrouchStem = nullptr;
 
-	//new 9_22 Shield
+	//9_22 Shield
 
 	UPROPERTY(
 		EditAnywhere,
@@ -88,10 +88,14 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> CrouchStemAudioComponent = nullptr;
 
-	//new 9_22
+	//9_22
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> ShieldStemAudioComponent = nullptr;
+
+	// new 9_25 AIRWALK!!
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> AirWalkStemAudioComponent = nullptr;
 
 
 
@@ -116,16 +120,32 @@ protected:
 	)
 	float CrouchStemVolume = 1.0f;
 
-	//new 9_22 shield
+	//9_22 shield
 	UPROPERTY(
 		EditAnywhere,
 		BlueprintReadOnly,
 		Category="MVS|Mix",
 		meta=(ClampMin="0.0", ClampMax="1.0")
-)
+	)
 	float ShieldStemVolume = 1.0f;
 
+	//new 9_25 AIRWALK!!
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Empty Disclosures"
+	)
+	TObjectPtr<USoundBase> EmptyDisclosuresAirWalkStem = nullptr;
 
+	// new 9_25 AirWalk!!
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0", ClampMax="1.0")
+	)
+	float AirWalkStemVolume = 1.0f;
+	
 	UPROPERTY(
 		EditAnywhere,
 		BlueprintReadOnly,
@@ -142,9 +162,12 @@ private:
 
 	bool bCrouchStemAudible = false;
 
-	//new 9_22 shield
+	//9_22 shield
 
 	bool bShieldStemAudible = false;
+
+	// new 9_25 AirWalk
+	bool bAirWalkStemAudible = false;
 
 
 
@@ -191,7 +214,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsCrouchStemActive() const;
 
-	//new 9_22
+	//9_22
 
 	// ========================================================
 	// MVP2 - SHIELD
@@ -202,6 +225,17 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsShieldStemActive() const;
+
+
+	// new_9_25================================================
+	// MVP3 - AIRWALK
+	// ========================================================
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Abilities")
+	void SetAirWalkStemActive(bool bActive);
+
+	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
+	bool IsAirWalkStemActive() const;
 
 
 

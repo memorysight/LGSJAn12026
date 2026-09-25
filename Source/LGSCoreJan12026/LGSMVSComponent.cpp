@@ -187,7 +187,7 @@ void ULGSMVSComponent::StartMusic()
 
 	}
 
-	//new 9_22 shield
+	//9_22 shield
 	//9_22_2nd round actually use 'keep alive value from 0.0f to 1.0f
 	if (EmptyDisclosuresShieldStem)
 	{
@@ -216,16 +216,46 @@ void ULGSMVSComponent::StartMusic()
 		);
 	}
 
+	// new 9_25 AIRWALKING!!! Breaking the SoundBarrier
+	if (EmptyDisclosuresAirWalkStem)
+	{
+		AirWalkStemAudioComponent =
+			UGameplayStatics::SpawnSound2D(
+				this,
+				EmptyDisclosuresAirWalkStem,
+				MVSStemSilentVolume,
+				1.0f,
+				0.0f,
+				nullptr,
+				true,
+				false
+			);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("MVS AIRWALK SPAWN: Component=%s IsPlaying=%d Volume=%.3f"),
+			*GetNameSafe(AirWalkStemAudioComponent),
+			AirWalkStemAudioComponent &&
+			AirWalkStemAudioComponent->IsPlaying() ? 1 : 0,
+			AirWalkStemAudioComponent
+				? AirWalkStemAudioComponent->VolumeMultiplier
+				: -1.0f
+		);
+	}
+
 	
 	bMVSPlaying = true;
 	bCrouchStemAudible = false;
-	//new 9_22 shield
+	//9_22 shield
 	bShieldStemAudible = false;
+	//new 9_25
+	bAirWalkStemAudible = false;
 
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("MVS MVP2 STARTED - Base + Crouch + Shield stems.  New Sonic Landscapes Explored!!")
+		TEXT("MVS MVP3 STARTED - Base + Crouch + Shield + AirWalk stems. Manny Synth Online!!  Breaking the sound BARRIER!")
 	);
 }
 
@@ -249,18 +279,26 @@ void ULGSMVSComponent::StopMVS()
 		CrouchStemAudioComponent = nullptr;
 	}
 
-	//new 9_22 shield
+	//9_22 shield
 	if (ShieldStemAudioComponent)
 	{
 		ShieldStemAudioComponent->Stop();
 		ShieldStemAudioComponent = nullptr;
 	}
+	//9_25_ stop AIRWALKING LIKE A BOSS
+	if (AirWalkStemAudioComponent)
+	{
+		AirWalkStemAudioComponent->Stop();
+		AirWalkStemAudioComponent = nullptr;
+	}
 
 
 	bMVSPlaying = false;
 	bCrouchStemAudible = false;
-	//new 9_22 shield
+	//9_22 shield
 	bShieldStemAudible = false;
+	//new 9_25
+	bAirWalkStemAudible = false;
 
 
 	UE_LOG(
@@ -283,7 +321,7 @@ bool ULGSMVSComponent::IsMVSPlaying() const
 
 void ULGSMVSComponent::SetCrouchStemActive(bool bActive)
 {
-	//new 9_12
+	//9_12
 	UE_LOG(
 		LogTemp,
 		Warning,
@@ -357,7 +395,7 @@ void ULGSMVSComponent::SetCrouchStemActive(bool bActive)
 			TEXT("MVS: CROUCH STEM AUDIBLE")
 		);
 	}
-	//new 9_22 2nd Round edits change from 0.0f to MVSStemSilentVolume
+	//9_22 2nd Round edits change from 0.0f to MVSStemSilentVolume
 	else
 	{
 		CrouchStemAudioComponent->SetVolumeMultiplier(MVSStemSilentVolume);
@@ -378,7 +416,7 @@ void ULGSMVSComponent::SetCrouchStemActive(bool bActive)
 	}
 }
 
-//new 9_22
+//9_22
 // ============================================================
 // SHIELD
 // ============================================================
@@ -474,13 +512,114 @@ void ULGSMVSComponent::SetShieldStemActive(bool bActive)
     }
 }
 
+// new 9_25====================================================
+// AIRWALK
+// ============================================================
+
+void ULGSMVSComponent::SetAirWalkStemActive(bool bActive)
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("MVS SetAirWalkStemActive called: %s"),
+        bActive ? TEXT("TRUE") : TEXT("FALSE")
+    );
+
+    if (!bMVSPlaying)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS: AirWalk state received before MVS started.")
+        );
+
+        return;
+    }
+
+    if (!AirWalkStemAudioComponent)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS: No AirWalk Stem Audio Component.")
+        );
+
+        return;
+    }
+
+    // Don't repeatedly issue identical volume commands.
+    if (bAirWalkStemAudible == bActive)
+    {
+        return;
+    }
+
+    bAirWalkStemAudible = bActive;
+
+    if (bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS AIRWALK before unmute: IsPlaying=%d Volume=%.3f"),
+            AirWalkStemAudioComponent->IsPlaying() ? 1 : 0,
+            AirWalkStemAudioComponent->VolumeMultiplier
+        );
+
+        // Instant mixer change.
+        // Does NOT restart playback.
+        AirWalkStemAudioComponent->SetVolumeMultiplier(
+            AirWalkStemVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS AIRWALK AFTER SetVolumeMultiplier: IsPlaying=%d Volume=%.3f Target=%.3f"),
+            AirWalkStemAudioComponent->IsPlaying() ? 1 : 0,
+            AirWalkStemAudioComponent->VolumeMultiplier,
+            AirWalkStemVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Log,
+            TEXT("MVS: AIRWALK STEM AUDIBLE")
+        );
+    }
+    else
+    {
+        AirWalkStemAudioComponent->SetVolumeMultiplier(
+            MVSStemSilentVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS AIRWALK AFTER mute: IsPlaying=%d Volume=%.3f"),
+            AirWalkStemAudioComponent->IsPlaying() ? 1 : 0,
+            AirWalkStemAudioComponent->VolumeMultiplier
+        );
+
+        UE_LOG(
+            LogTemp,
+            Log,
+            TEXT("MVS: AIRWALK STEM MUTED")
+        );
+    }
+}
+
+bool ULGSMVSComponent::IsAirWalkStemActive() const
+{
+    return bAirWalkStemAudible;
+}
+
 
 bool ULGSMVSComponent::IsCrouchStemActive() const
 {
 	return bCrouchStemAudible;
 }
 
-//new 9_22
+//9_22
 bool ULGSMVSComponent::IsShieldStemActive() const
 {
 	return bShieldStemAudible;
