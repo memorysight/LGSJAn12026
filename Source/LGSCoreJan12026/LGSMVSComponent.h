@@ -74,7 +74,16 @@ protected:
 )
 	TObjectPtr<USoundBase> EmptyDisclosuresShieldStem = nullptr;
 
+	//9_27 OverDrive
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Empty Disclosures")
+	
+	TObjectPtr<USoundBase> EmptyDisclosuresOverDriveStem = nullptr;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> OverDriveStemAudioComponent = nullptr;
 
 	
 	// ========================================================
@@ -137,7 +146,7 @@ protected:
 	)
 	TObjectPtr<USoundBase> EmptyDisclosuresAirWalkStem = nullptr;
 
-	// new 9_25 AirWalk!!
+	// 9_25 AirWalk!!
 	UPROPERTY(
 		EditAnywhere,
 		BlueprintReadOnly,
@@ -145,6 +154,15 @@ protected:
 		meta=(ClampMin="0.0", ClampMax="1.0")
 	)
 	float AirWalkStemVolume = 1.0f;
+
+	// 9_27 OverDrive
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0", ClampMax="1.0")
+		)
+	float OverDriveStemVolume = 1.0f;
 	
 	UPROPERTY(
 		EditAnywhere,
@@ -166,8 +184,11 @@ private:
 
 	bool bShieldStemAudible = false;
 
-	// new 9_25 AirWalk
+	// 9_25 AirWalk
 	bool bAirWalkStemAudible = false;
+
+	//new 9_27
+	bool bOverDriveStemAudible = false;
 
 
 
@@ -227,7 +248,7 @@ public:
 	bool IsShieldStemActive() const;
 
 
-	// new_9_25================================================
+	// 9_25================================================
 	// MVP3 - AIRWALK
 	// ========================================================
 
@@ -236,6 +257,16 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsAirWalkStemActive() const;
+
+	// new_9_27================================================
+	// MVP3 - OverDrive Killing Streak
+	// ========================================================
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Abilities")
+	void SetOverDriveStemActive(bool bActive);
+
+	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
+	bool IsOverDriveStemActive() const;
 
 
 

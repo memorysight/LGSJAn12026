@@ -244,18 +244,48 @@ void ULGSMVSComponent::StartMusic()
 		);
 	}
 
+	// new 9_27 OverDrive Killing Streak!!! Let the Melee Shock the Enemies into Submission! 
+	if (EmptyDisclosuresOverDriveStem)
+	{
+		OverDriveStemAudioComponent =
+			UGameplayStatics::SpawnSound2D(
+				this,
+				EmptyDisclosuresOverDriveStem,
+				MVSStemSilentVolume,
+				1.0f,
+				0.0f,
+				nullptr,
+				true,
+				false
+			);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("MVS OVERDRIVE SPAWN: Component=%s IsPlaying=%d Volume=%.3f"),
+			*GetNameSafe(OverDriveStemAudioComponent),
+			OverDriveStemAudioComponent &&
+			OverDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+			OverDriveStemAudioComponent
+				? OverDriveStemAudioComponent->VolumeMultiplier
+				: -1.0f
+		);
+	}
+
+	bOverDriveStemAudible = false;
+
 	
 	bMVSPlaying = true;
 	bCrouchStemAudible = false;
 	//9_22 shield
 	bShieldStemAudible = false;
-	//new 9_25
+	//9_25
 	bAirWalkStemAudible = false;
 
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("MVS MVP3 STARTED - Base + Crouch + Shield + AirWalk stems. Manny Synth Online!!  Breaking the sound BARRIER!")
+		TEXT("MVS MVP4 STARTED - Base + Crouch + Shield + AirWalk + OverDrive. EARNED MUSICAL POWER ONLINE!!")
 	);
 }
 
@@ -291,6 +321,12 @@ void ULGSMVSComponent::StopMVS()
 		AirWalkStemAudioComponent->Stop();
 		AirWalkStemAudioComponent = nullptr;
 	}
+	//9_27 stop OverDrive Devastation! 
+	if (OverDriveStemAudioComponent)
+	{
+		OverDriveStemAudioComponent->Stop();
+		OverDriveStemAudioComponent = nullptr;
+	}
 
 
 	bMVSPlaying = false;
@@ -299,6 +335,8 @@ void ULGSMVSComponent::StopMVS()
 	bShieldStemAudible = false;
 	//new 9_25
 	bAirWalkStemAudible = false;
+	//new 9_27 ending Melee Onslaught
+	bOverDriveStemAudible = false;
 
 
 	UE_LOG(
@@ -512,7 +550,7 @@ void ULGSMVSComponent::SetShieldStemActive(bool bActive)
     }
 }
 
-// new 9_25====================================================
+// 9_25====================================================
 // AIRWALK
 // ============================================================
 
@@ -606,6 +644,100 @@ void ULGSMVSComponent::SetAirWalkStemActive(bool bActive)
             TEXT("MVS: AIRWALK STEM MUTED")
         );
     }
+}
+
+
+
+// 9_25====================================================
+// OverDrive EventHorizon and Melee Devastation 
+// ============================================================
+
+void ULGSMVSComponent::SetOverDriveStemActive(bool bActive)
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("MVS SetOverDriveStemActive CALLED: Active=%d MVSPlaying=%d Component=%s"),
+        bActive ? 1 : 0,
+        bMVSPlaying ? 1 : 0,
+        *GetNameSafe(OverDriveStemAudioComponent)
+    );
+
+    if (!bMVSPlaying)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OVERDRIVE ignored - MVS is not playing")
+        );
+        return;
+    }
+
+    if (!OverDriveStemAudioComponent)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OVERDRIVE ignored - OverDriveStemAudioComponent is NULL")
+        );
+        return;
+    }
+
+    if (bOverDriveStemAudible == bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OVERDRIVE unchanged - already %s"),
+            bActive ? TEXT("AUDIBLE") : TEXT("MUTED")
+        );
+        return;
+    }
+
+    bOverDriveStemAudible = bActive;
+
+    if (bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OVERDRIVE before unmute: IsPlaying=%d Volume=%.3f"),
+            OverDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            OverDriveStemAudioComponent->VolumeMultiplier
+        );
+
+        OverDriveStemAudioComponent->SetVolumeMultiplier(
+            OverDriveStemVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OVERDRIVE AUDIBLE: IsPlaying=%d Volume=%.3f Target=%.3f"),
+            OverDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            OverDriveStemAudioComponent->VolumeMultiplier,
+            OverDriveStemVolume
+        );
+    }
+    else
+    {
+        OverDriveStemAudioComponent->SetVolumeMultiplier(
+            MVSStemSilentVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OVERDRIVE MUTED: IsPlaying=%d Volume=%.3f"),
+            OverDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            OverDriveStemAudioComponent->VolumeMultiplier
+        );
+    }
+}
+
+bool ULGSMVSComponent::IsOverDriveStemActive() const
+{
+    return bOverDriveStemAudible;
 }
 
 bool ULGSMVSComponent::IsAirWalkStemActive() const
