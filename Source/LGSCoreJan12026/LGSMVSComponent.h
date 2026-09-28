@@ -85,6 +85,18 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> OverDriveStemAudioComponent = nullptr;
 
+	//new 9_28
+	// 9_28 HyperDrive
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Empty Disclosures"
+	)
+	TObjectPtr<USoundBase> EmptyDisclosuresHyperDriveStem = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> HyperDriveStemAudioComponent = nullptr;
+
 	
 	// ========================================================
 	// RUNTIME MVS COMPONENTS
@@ -163,6 +175,16 @@ protected:
 		meta=(ClampMin="0.0", ClampMax="1.0")
 		)
 	float OverDriveStemVolume = 1.0f;
+
+	//new 9_27
+	// 9_28 HyperDrive
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0", ClampMax="1.0")
+	)
+	float HyperDriveStemVolume = 1.0f;
 	
 	UPROPERTY(
 		EditAnywhere,
@@ -187,8 +209,11 @@ private:
 	// 9_25 AirWalk
 	bool bAirWalkStemAudible = false;
 
-	//new 9_27
+	// 9_27
 	bool bOverDriveStemAudible = false;
+
+	//new 9_28_
+	bool bHyperDriveStemAudible = false;
 
 
 
@@ -267,6 +292,16 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsOverDriveStemActive() const;
+
+	// new 9_28================================================
+	// MVP5 - HyperDrive Killing Streak
+	// ========================================================
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Abilities")
+	void SetHyperDriveStemActive(bool bActive);
+
+	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
+	bool IsHyperDriveStemActive() const;
 
 
 

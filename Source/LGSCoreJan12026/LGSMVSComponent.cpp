@@ -272,7 +272,38 @@ void ULGSMVSComponent::StartMusic()
 		);
 	}
 
+	// 9_28 HyperDrive Killing Streak
+	if (EmptyDisclosuresHyperDriveStem)
+	{
+		HyperDriveStemAudioComponent =
+			UGameplayStatics::SpawnSound2D(
+				this,
+				EmptyDisclosuresHyperDriveStem,
+				MVSStemSilentVolume,
+				1.0f,
+				0.0f,
+				nullptr,
+				true,
+				false
+			);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("MVS HYPERDRIVE SPAWN: Component=%s IsPlaying=%d Volume=%.3f"),
+			*GetNameSafe(HyperDriveStemAudioComponent),
+			HyperDriveStemAudioComponent &&
+			HyperDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+			HyperDriveStemAudioComponent
+				? HyperDriveStemAudioComponent->VolumeMultiplier
+				: -1.0f
+		);
+	}
+
+	//9_27 OverDrive
 	bOverDriveStemAudible = false;
+	//new 9_28 HyperDrive
+	bHyperDriveStemAudible = false;
 
 	
 	bMVSPlaying = true;
@@ -285,7 +316,7 @@ void ULGSMVSComponent::StartMusic()
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("MVS MVP4 STARTED - Base + Crouch + Shield + AirWalk + OverDrive. EARNED MUSICAL POWER ONLINE!!")
+		TEXT("MVS MVP5 STARTED - Base + Crouch + Shield + AirWalk + OverDrive + HyperDrive. Unleash the first fully player enabled synth!!")
 	);
 }
 
@@ -327,6 +358,12 @@ void ULGSMVSComponent::StopMVS()
 		OverDriveStemAudioComponent->Stop();
 		OverDriveStemAudioComponent = nullptr;
 	}
+	// 9_28 stop HyperDrive
+	if (HyperDriveStemAudioComponent)
+	{
+		HyperDriveStemAudioComponent->Stop();
+		HyperDriveStemAudioComponent = nullptr;
+	}
 
 
 	bMVSPlaying = false;
@@ -337,6 +374,8 @@ void ULGSMVSComponent::StopMVS()
 	bAirWalkStemAudible = false;
 	//new 9_27 ending Melee Onslaught
 	bOverDriveStemAudible = false;
+	//new 9_28 Watch the countesses cower in fear as they hear the sounds of a million angels singing in harmony
+	bHyperDriveStemAudible = false;
 
 
 	UE_LOG(
@@ -733,6 +772,98 @@ void ULGSMVSComponent::SetOverDriveStemActive(bool bActive)
             OverDriveStemAudioComponent->VolumeMultiplier
         );
     }
+}
+
+// new 9_25====================================================
+// HYPERDRIVE : all those who dare attack will be cut to pieces as music echoes in the air
+// ============================================================
+
+void ULGSMVSComponent::SetHyperDriveStemActive(bool bActive)
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("MVS SetHyperDriveStemActive CALLED: Active=%d MVSPlaying=%d Component=%s"),
+        bActive ? 1 : 0,
+        bMVSPlaying ? 1 : 0,
+        *GetNameSafe(HyperDriveStemAudioComponent)
+    );
+
+    if (!bMVSPlaying)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS HYPERDRIVE ignored - MVS is not playing")
+        );
+        return;
+    }
+
+    if (!HyperDriveStemAudioComponent)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS HYPERDRIVE ignored - HyperDriveStemAudioComponent is NULL")
+        );
+        return;
+    }
+
+    if (bHyperDriveStemAudible == bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS HYPERDRIVE unchanged - already %s"),
+            bActive ? TEXT("AUDIBLE") : TEXT("MUTED")
+        );
+        return;
+    }
+
+    bHyperDriveStemAudible = bActive;
+
+    if (bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS HYPERDRIVE before unmute: IsPlaying=%d Volume=%.3f"),
+            HyperDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            HyperDriveStemAudioComponent->VolumeMultiplier
+        );
+
+        HyperDriveStemAudioComponent->SetVolumeMultiplier(
+            HyperDriveStemVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS HYPERDRIVE AUDIBLE: IsPlaying=%d Volume=%.3f Target=%.3f"),
+            HyperDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            HyperDriveStemAudioComponent->VolumeMultiplier,
+            HyperDriveStemVolume
+        );
+    }
+    else
+    {
+        HyperDriveStemAudioComponent->SetVolumeMultiplier(
+            MVSStemSilentVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS HYPERDRIVE MUTED: IsPlaying=%d Volume=%.3f"),
+            HyperDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            HyperDriveStemAudioComponent->VolumeMultiplier
+        );
+    }
+}
+
+bool ULGSMVSComponent::IsHyperDriveStemActive() const
+{
+    return bHyperDriveStemAudible;
 }
 
 bool ULGSMVSComponent::IsOverDriveStemActive() const

@@ -5,6 +5,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
+//new 9_28 HyperDrive KillingStreak Music
+#include "LGSCoreJan12026Character.h"
+#include "LGSMVSComponent.h"
 #include "CollisionShape.h"
 #include "CollisionQueryParams.h"
 #include "Engine/EngineTypes.h"     // FOverlapResult, etc.
@@ -78,6 +81,16 @@ void ULGSHyperDriveComponent::BeginHyperDrive()
 	bHyperDriveActive = true;
 	bHasUsedLandingBurstThisHyperDrive = false;
 
+	//new 9_28 THE authoritative ON transition
+	if (ALGSCoreJan12026Character* LGSChar =
+	Cast<ALGSCoreJan12026Character>(GetOwnerCharacter()))
+	{
+		if (ULGSMVSComponent* MVS = LGSChar->GetMVSComponent())
+		{
+			MVS->SetHyperDriveStemActive(true);
+		}
+	}
+	
 	// Jump boost
 	if (bHyperDriveJumpBoostEnabled)
 	{
@@ -114,6 +127,16 @@ void ULGSHyperDriveComponent::EndHyperDrive()
 
 	bHyperDriveActive = false;
 	bHasUsedLandingBurstThisHyperDrive = false;
+
+	//new 9_28_ HyperDrive MVS cleaner than OD, the duration timer already calls
+	if (ALGSCoreJan12026Character* LGSChar =
+	Cast<ALGSCoreJan12026Character>(GetOwnerCharacter()))
+	{
+		if (ULGSMVSComponent* MVS = LGSChar->GetMVSComponent())
+		{
+			MVS->SetHyperDriveStemActive(false);
+		}
+	}
 
 	// Restore jump
 	if (UCharacterMovementComponent* MoveComp = GetMoveComp())
