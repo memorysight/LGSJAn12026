@@ -85,7 +85,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> OverDriveStemAudioComponent = nullptr;
 
-	//new 9_28
+	
 	// 9_28 HyperDrive
 	UPROPERTY(
 		EditAnywhere,
@@ -96,6 +96,18 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> HyperDriveStemAudioComponent = nullptr;
+
+	//new 9_30 OmegaDrive Integration: From alpha/crouch leads to Omega
+	UPROPERTY(
+	EditAnywhere,
+	BlueprintReadOnly,
+	Category="MVS|Empty Disclosures"
+)
+	TObjectPtr<USoundBase> EmptyDisclosuresOmegaDriveStem = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> OmegaDriveStemAudioComponent = nullptr;
+	
 
 	
 	// ========================================================
@@ -114,7 +126,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> ShieldStemAudioComponent = nullptr;
 
-	// new 9_25 AIRWALK!!
+	// 9_25 AIRWALK!!
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> AirWalkStemAudioComponent = nullptr;
 
@@ -150,7 +162,7 @@ protected:
 	)
 	float ShieldStemVolume = 1.0f;
 
-	//new 9_25 AIRWALK!!
+	//9_25 AIRWALK!!
 	UPROPERTY(
 		EditAnywhere,
 		BlueprintReadOnly,
@@ -176,7 +188,7 @@ protected:
 		)
 	float OverDriveStemVolume = 1.0f;
 
-	//new 9_27
+	//9_27
 	// 9_28 HyperDrive
 	UPROPERTY(
 		EditAnywhere,
@@ -185,6 +197,15 @@ protected:
 		meta=(ClampMin="0.0", ClampMax="1.0")
 	)
 	float HyperDriveStemVolume = 1.0f;
+
+	// 9_30 OmegaDrive 'with the great soul enclosed in the fifth light'
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category="MVS|Mix",
+		meta=(ClampMin="0.0", ClampMax="1.0")
+	)
+	float OmegaDriveStemVolume = 1.0f;
 	
 	UPROPERTY(
 		EditAnywhere,
@@ -212,8 +233,11 @@ private:
 	// 9_27
 	bool bOverDriveStemAudible = false;
 
-	//new 9_28_
+	//9_28_
 	bool bHyperDriveStemAudible = false;
+
+	//new 9_30 OmegaDrive 'but each word shall harbor an idea'
+	bool bOmegaDriveStemAudible = false;
 
 
 
@@ -273,7 +297,7 @@ public:
 	bool IsShieldStemActive() const;
 
 
-	// 9_25================================================
+	// 9_25====================================================
 	// MVP3 - AIRWALK
 	// ========================================================
 
@@ -283,7 +307,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsAirWalkStemActive() const;
 
-	// new_9_27================================================
+	// 9_27====================================================
 	// MVP3 - OverDrive Killing Streak
 	// ========================================================
 
@@ -293,7 +317,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsOverDriveStemActive() const;
 
-	// new 9_28================================================
+	// ====9_28================================================
 	// MVP5 - HyperDrive Killing Streak
 	// ========================================================
 
@@ -302,6 +326,17 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
 	bool IsHyperDriveStemActive() const;
+
+
+	// new 9_30_====aptitude for sublimation is subject to
+	// MVP6 - OMEGADRIVE
+	// ===============================individual variation
+
+	UFUNCTION(BlueprintCallable, Category="MVS|Abilities")
+	void SetOmegaDriveStemActive(bool bActive);
+
+	UFUNCTION(BlueprintPure, Category="MVS|Abilities")
+	bool IsOmegaDriveStemActive() const;
 
 
 

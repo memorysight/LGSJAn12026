@@ -216,7 +216,7 @@ void ULGSMVSComponent::StartMusic()
 		);
 	}
 
-	// new 9_25 AIRWALKING!!! Breaking the SoundBarrier
+	// 9_25 AIRWALKING!!! Breaking the SoundBarrier
 	if (EmptyDisclosuresAirWalkStem)
 	{
 		AirWalkStemAudioComponent =
@@ -244,7 +244,7 @@ void ULGSMVSComponent::StartMusic()
 		);
 	}
 
-	// new 9_27 OverDrive Killing Streak!!! Let the Melee Shock the Enemies into Submission! 
+	// 9_27 OverDrive Killing Streak!!! Let the Melee Shock the Enemies into Submission! 
 	if (EmptyDisclosuresOverDriveStem)
 	{
 		OverDriveStemAudioComponent =
@@ -300,10 +300,40 @@ void ULGSMVSComponent::StartMusic()
 		);
 	}
 
+	// 9_30 OmegaDrive - those spirits who appear among the 4th sun are the wise
+	if (EmptyDisclosuresOmegaDriveStem)
+	{
+		OmegaDriveStemAudioComponent =
+			UGameplayStatics::SpawnSound2D(
+				this,
+				EmptyDisclosuresOmegaDriveStem,
+				MVSStemSilentVolume,
+				1.0f,
+				0.0f,
+				nullptr,
+				true,
+				false
+			);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("MVS OMEGADRIVE SPAWN: Component=%s IsPlaying=%d Volume=%.3f"),
+			*GetNameSafe(OmegaDriveStemAudioComponent),
+			OmegaDriveStemAudioComponent &&
+			OmegaDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+			OmegaDriveStemAudioComponent
+				? OmegaDriveStemAudioComponent->VolumeMultiplier
+				: -1.0f
+		);
+	}
+
 	//9_27 OverDrive
 	bOverDriveStemAudible = false;
-	//new 9_28 HyperDrive
+	//9_28 HyperDrive
 	bHyperDriveStemAudible = false;
+	//new 9_30 overdrive
+	bOmegaDriveStemAudible = false;
 
 	
 	bMVSPlaying = true;
@@ -316,7 +346,7 @@ void ULGSMVSComponent::StartMusic()
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("MVS MVP5 STARTED - Base + Crouch + Shield + AirWalk + OverDrive + HyperDrive. Unleash the first fully player enabled synth!!")
+		TEXT("MVS MVP6 STARTED - Base + Crouch + Shield + AirWalk + OverDrive + HyperDrive + OmegaDrive. THE CONVERGENCE IS ONLINE!!  thus the sphere, which sweeps along with it the rest of the universe, must watch and listen")
 	);
 }
 
@@ -365,17 +395,26 @@ void ULGSMVSComponent::StopMVS()
 		HyperDriveStemAudioComponent = nullptr;
 	}
 
+	// new 9_30 stop OmegaDrive L'incendio suo seguiva ogne scintilla
+	if (OmegaDriveStemAudioComponent)
+	{
+		OmegaDriveStemAudioComponent->Stop();
+		OmegaDriveStemAudioComponent = nullptr;
+	}
+
 
 	bMVSPlaying = false;
 	bCrouchStemAudible = false;
 	//9_22 shield
 	bShieldStemAudible = false;
-	//new 9_25
+	//9_25
 	bAirWalkStemAudible = false;
-	//new 9_27 ending Melee Onslaught
+	//9_27 ending Melee Onslaught
 	bOverDriveStemAudible = false;
-	//new 9_28 Watch the countesses cower in fear as they hear the sounds of a million angels singing in harmony
+	//9_28 Watch the countesses cower in fear as they hear the sounds of a million angels singing in harmony
 	bHyperDriveStemAudible = false;
+	//new 9_30 Se ni venite dal giacer securi e volete la via piu totso, le vostre destre sien sempre di fori
+	bOmegaDriveStemAudible = false;
 
 
 	UE_LOG(
@@ -774,7 +813,7 @@ void ULGSMVSComponent::SetOverDriveStemActive(bool bActive)
     }
 }
 
-// new 9_25====================================================
+// 9_25========================================================
 // HYPERDRIVE : all those who dare attack will be cut to pieces as music echoes in the air
 // ============================================================
 
@@ -861,6 +900,93 @@ void ULGSMVSComponent::SetHyperDriveStemActive(bool bActive)
     }
 }
 
+// ============================================================
+// OMEGADRIVE - HD + OD convergence Da stellt ein Wort zur rechten Zeit sich ein
+// ============================================================
+
+void ULGSMVSComponent::SetOmegaDriveStemActive(bool bActive)
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("MVS SetOmegaDriveStemActive CALLED: Active=%d MVSPlaying=%d Component=%s"),
+        bActive ? 1 : 0,
+        bMVSPlaying ? 1 : 0,
+        *GetNameSafe(OmegaDriveStemAudioComponent)
+    );
+
+    if (!bMVSPlaying)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OMEGADRIVE ignored - MVS is not playing")
+        );
+        return;
+    }
+
+    if (!OmegaDriveStemAudioComponent)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OMEGADRIVE ignored - OmegaDriveStemAudioComponent is NULL")
+        );
+        return;
+    }
+
+    if (bOmegaDriveStemAudible == bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OMEGADRIVE unchanged - already %s"),
+            bActive ? TEXT("AUDIBLE") : TEXT("MUTED")
+        );
+        return;
+    }
+
+    bOmegaDriveStemAudible = bActive;
+
+    if (bActive)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OMEGADRIVE before unmute: IsPlaying=%d Volume=%.3f"),
+            OmegaDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            OmegaDriveStemAudioComponent->VolumeMultiplier
+        );
+
+        OmegaDriveStemAudioComponent->SetVolumeMultiplier(
+            OmegaDriveStemVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OMEGADRIVE AUDIBLE: IsPlaying=%d Volume=%.3f Target=%.3f"),
+            OmegaDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            OmegaDriveStemAudioComponent->VolumeMultiplier,
+            OmegaDriveStemVolume
+        );
+    }
+    else
+    {
+        OmegaDriveStemAudioComponent->SetVolumeMultiplier(
+            MVSStemSilentVolume
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("MVS OMEGADRIVE MUTED: IsPlaying=%d Volume=%.3f"),
+            OmegaDriveStemAudioComponent->IsPlaying() ? 1 : 0,
+            OmegaDriveStemAudioComponent->VolumeMultiplier
+        );
+    }
+}
+
 bool ULGSMVSComponent::IsHyperDriveStemActive() const
 {
     return bHyperDriveStemAudible;
@@ -886,6 +1012,12 @@ bool ULGSMVSComponent::IsCrouchStemActive() const
 bool ULGSMVSComponent::IsShieldStemActive() const
 {
 	return bShieldStemAudible;
+}
+
+//9_30 All the weapons you have prepared and all the strongholds you have built and now occupy shall remain in your possession.
+bool ULGSMVSComponent::IsOmegaDriveStemActive() const
+{
+	return bOmegaDriveStemAudible;
 }
 
 
