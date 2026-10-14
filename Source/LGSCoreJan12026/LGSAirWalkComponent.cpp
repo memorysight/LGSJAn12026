@@ -3,6 +3,8 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "NiagaraFunctionLibrary.h"
+//new 9_25 AIRWALK MVS!!
+#include "LGSMVSComponent.h"
 #include "NiagaraSystem.h"
 #include "LGSCoreJan12026Character.h"
 
@@ -234,6 +236,16 @@ void ULGSAirWalkComponent::EnterAirWalk()
 	bEntryDistortionConsumed = false;
 	bDistortionRollResolved = false;
 	DistortionsRemaining = 0;
+
+	//new 9_25_ AIRWALKING
+	if (ALGSCoreJan12026Character* LGSChar =
+	Cast<ALGSCoreJan12026Character>(OwnerCharacter))
+	{
+		if (ULGSMVSComponent* MVS = LGSChar->GetMVSComponent())
+		{
+			MVS->SetAirWalkStemActive(true);
+		}
+	}
 
 	if (GEngine)
 	{
@@ -717,7 +729,21 @@ void ULGSAirWalkComponent::HandleLanded(const FHitResult& Hit)
 		CachedMoveComp->GravityScale = NormalGravityScale;
 	}
 
+	//new 9_25_Airwalking to greatness!
+	if (ALGSCoreJan12026Character* LGSChar =
+		Cast<ALGSCoreJan12026Character>(OwnerCharacter))
+	{
+		if (ULGSMVSComponent* MVS = LGSChar->GetMVSComponent())
+		{
+			MVS->SetAirWalkStemActive(false);
+		}
+	}
+
 	ResetAirWalkState();
 
-	AirWalkEnergyCurrent = FMath::Min(AirWalkEnergyMax, AirWalkEnergyCurrent + 15.f);
+	AirWalkEnergyCurrent =
+		FMath::Min(
+			AirWalkEnergyMax,
+			AirWalkEnergyCurrent + 15.f
+		);
 }

@@ -31,7 +31,7 @@
 //7_14 Omega
 #include "GameFramework/SpringArmComponent.h"
 //end 7_14
-//new 8_14 MVS
+//8_14 MVS
 #include "LGSMVSComponent.h"
 //end 8_14
 #include "InputActionValue.h"
@@ -131,7 +131,7 @@ ALGSCoreJan12026Character::ALGSCoreJan12026Character()
 	// The inherited CharacterMesh0 already knows which body Omega uses.
 	// C++ is not selecting Serath here; it is only keeping her hidden
 	// until reality has earned the right to see her.
-	//new 8_9 reality has earned the right to see her
+	//8_9 reality has earned the right to see her
 	if (GetMesh())
 	{
 		GetMesh()->SetHiddenInGame(true, false);
@@ -367,7 +367,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 8_8_Manny and ABP assignment
 
-	// new 8_9 - Runtime Serath skeletal mesh assignment only.
+	// 8_9 - Runtime Serath skeletal mesh assignment only.
 	// No Serath AnimBP yet. No retargeting. No baked animation hookup yet.
 	if (OmegaSerathMesh)
 	{
@@ -398,7 +398,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 8_9 Serath OmegaSerathMesh C++, avoid serialization, SAVE ALL
 
-	//new 8_9_ adding ABP_Generic5Serath as ABP avoiding serialization
+	//8_9_ adding ABP_Generic5Serath as ABP avoiding serialization
 	UClass* SerathAnimClass = LoadClass<UAnimInstance>(
 	nullptr,
 	TEXT("/Game/Blueprints/RetargetedCharacters/"
@@ -456,7 +456,7 @@ void ALGSCoreJan12026Character::BeginPlay()
 	}
 	//end 1_23_26
 
-	//new 8_14 First MVS composition playback:  StopCallingI'mBusy!
+	//8_14 First MVS composition playback:  StopCallingI'mBusy!
 	if (MVSComponent)
 	{
 		MVSComponent->StartMusic();
@@ -769,16 +769,35 @@ void ALGSCoreJan12026Character::OnCrouchStarted()
 		UpdateSprintState();
 	}
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Crouch Start crouched=%d"),
-		bIsCrouched ? 1 : 0);
+	if (MVSComponent)
+	{
+		MVSComponent->SetCrouchStemActive(true);
+	}
+
+	UE_LOG(
+		LogTemplateCharacter,
+		Warning,
+		TEXT("[MOVE] Crouch Start crouched=%d"),
+		bIsCrouched ? 1 : 0
+	);
 }
+
 
 void ALGSCoreJan12026Character::OnCrouchReleased()
 {
 	UnCrouch();
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[MOVE] Crouch Stop crouched=%d"),
-		bIsCrouched ? 1 : 0);
+	if (MVSComponent)
+	{
+		MVSComponent->SetCrouchStemActive(false);
+	}
+
+	UE_LOG(
+		LogTemplateCharacter,
+		Warning,
+		TEXT("[MOVE] Crouch Stop crouched=%d"),
+		bIsCrouched ? 1 : 0
+	);
 }
 
 
@@ -849,6 +868,13 @@ void ALGSCoreJan12026Character::ActivateOmegaDrive()
 
 	bOmegaDriveActive = true;
 
+	//new 9_30 OmegaDrive Integration
+	//OmegaDrive MVS - authoritative ON transition
+	if (MVSComponent)
+	{
+		MVSComponent->SetOmegaDriveStemActive(true);
+	}
+
 	// Remember the human configuration.
 	// Omega is allowed to distort movement, not forget how to put it back.
 	PreOmegaWalkSpeed = MoveComp->MaxWalkSpeed;
@@ -875,7 +901,7 @@ void ALGSCoreJan12026Character::ActivateOmegaDrive()
 		MeleeWeaponVisual->SetVisibility(false, true);
 	}
 
-	// new_8_9 Manny - Serath visibility task
+	// 8_9 Manny - Serath visibility task
 	// 
 	// Manny remains alive as the hidden animation source.
 	if (GetMesh())
@@ -939,6 +965,12 @@ void ALGSCoreJan12026Character::DeactivateOmegaDrive()
 
 	bOmegaDriveActive = false;
 
+	// 9_30 OmegaDrive MVS - authoritative OFF transition
+	if (MVSComponent)
+	{
+		MVSComponent->SetOmegaDriveStemActive(false);
+	}
+
 	GetWorldTimerManager().ClearTimer(Timer_OmegaDriveDuration);
 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
@@ -964,7 +996,7 @@ void ALGSCoreJan12026Character::DeactivateOmegaDrive()
 	}
 
 
-	//new 8_9 Manny - Serath task 
+	//8_9 Manny - Serath task 
 	// Manny stays hidden; he remains only the animation source.
 	if (GetMesh())
 	{

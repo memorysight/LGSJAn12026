@@ -18,6 +18,8 @@
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 
+//new 9_22 shield mvs
+#include "LGSMVSComponent.h"
 
 #include "GameFramework/DamageType.h" 
 #include "CollisionQueryParams.h"
@@ -334,7 +336,10 @@ void ULGSShieldComponent::BreakShield()
 
 void ULGSShieldComponent::RefreshShieldVisualState()
 {
-	const bool bShow = bShieldActive && !bShieldBroken && ShieldEnergy > 0.f;
+	const bool bShow =
+		bShieldActive &&
+		!bShieldBroken &&
+		ShieldEnergy > 0.f;
 
 	if (ShieldVisualComp)
 	{
@@ -346,13 +351,35 @@ void ULGSShieldComponent::RefreshShieldVisualState()
 	{
 		if (bShow)
 		{
-			ShieldCollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			ShieldCollisionComp->SetCollisionEnabled(
+				ECollisionEnabled::QueryOnly
+			);
+
 			ShieldCollisionComp->SetGenerateOverlapEvents(true);
 		}
 		else
 		{
 			ShieldCollisionComp->SetGenerateOverlapEvents(false);
-			ShieldCollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			ShieldCollisionComp->SetCollisionEnabled(
+				ECollisionEnabled::NoCollision
+			);
+		}
+	}
+
+	// --------------------------------------------------------
+	// new 9_22____MVS - SHIELD STATE
+	// Shield is authoritative.
+	// Music reflects the same state as the actual shield.
+	// --------------------------------------------------------
+
+	if (ALGSCoreJan12026Character* OwnerChar =
+		Cast<ALGSCoreJan12026Character>(GetOwner()))
+	{
+		if (ULGSMVSComponent* MVSComponent =
+			OwnerChar->FindComponentByClass<ULGSMVSComponent>())
+		{
+			MVSComponent->SetShieldStemActive(bShow);
 		}
 	}
 }

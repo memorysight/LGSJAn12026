@@ -271,7 +271,7 @@ public:
 	FVector2D LastMoveInput = FVector2D::ZeroVector;
 	//end 4_14
 
-	//new 7_14 OmegaDrive First Pass__ClothC++7_28Update__MVSLab8_13Update2__WebSocketsDTO9_3Update3 
+	//new 7_14 OmegaDrive First Pass__ClothC++7_28Update__MVSLab8_13Update2
 	UFUNCTION()
 	void OnOmegaDrivePressed();
 
@@ -363,5 +363,12 @@ public:
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
 
+	//new 9_25 Airwalk Helper
+	ULGSMVSComponent* GetMVSComponent() const
+	{
+		return MVSComponent;
+	}
+
+	
 };
 

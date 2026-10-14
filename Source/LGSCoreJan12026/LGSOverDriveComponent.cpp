@@ -1,17 +1,20 @@
 #include "LGSOverDriveComponent.h"
 
 #include "GameFramework/Character.h"
-//new 5_13 ODKillStreak
+//5_13 ODKillStreak
 #include "TimerManager.h"
 #include "Engine/World.h"
+//new 9_27
+#include "LGSCoreJan12026Character.h"
+#include "LGSMVSComponent.h"
 //end 5_13
-//new 5_15 EventHorizon
+//5_15 EventHorizon
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 //end 5_15
-//new 5_15 needed to resolve Hit.GetResult Error
+//5_15 needed to resolve Hit.GetResult Error
 #include "CollisionQueryParams.h"
 #include "Engine/OverlapResult.h"
 //end 5_15 resolved error!
@@ -176,12 +179,32 @@ void ULGSOverDriveComponent::ActivateOverDrive()
 
 	bOverDriveActive = true;
 
+	//new 9_27_ Overdrive Killing Streak MVS integrations
+	if (ALGSCoreJan12026Character* LGSChar =
+	Cast<ALGSCoreJan12026Character>(OwnerCharacter))
+	{
+		if (ULGSMVSComponent* MVS = LGSChar->GetMVSComponent())
+		{
+			MVS->SetOverDriveStemActive(true);
+		}
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("[OD] ACTIVATED"));
 }
 
 void ULGSOverDriveComponent::DeactivateOverDrive()
 {
 	bOverDriveActive = false;
+
+	//9_27_ Overdrive MVS integration to end stem's audible state
+	if (ALGSCoreJan12026Character* LGSChar =
+	Cast<ALGSCoreJan12026Character>(OwnerCharacter))
+	{
+		if (ULGSMVSComponent* MVS = LGSChar->GetMVSComponent())
+		{
+			MVS->SetOverDriveStemActive(false);
+		}
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[OD] Deactivated"));
 
