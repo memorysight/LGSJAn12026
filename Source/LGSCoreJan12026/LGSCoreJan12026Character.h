@@ -271,7 +271,7 @@ public:
 	FVector2D LastMoveInput = FVector2D::ZeroVector;
 	//end 4_14
 
-	//new 7_14 OmegaDrive First Pass__ClothC++7_28Update__MVSLab8_13Update2
+	//new 7_14 OmegaDrive First Pass__ClothC++7_28Update__MVSLab8_13Update2__BELCloneUpdate10_16
 	UFUNCTION()
 	void OnOmegaDrivePressed();
 
