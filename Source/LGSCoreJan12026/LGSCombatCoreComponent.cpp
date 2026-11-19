@@ -100,113 +100,203 @@ void ULGSCombatCoreComponent::TrySecondary()
 }
 
 //new 3_21 ExplosiveBullets
+//new 11_19 Completely Replaced DoRangedShot: check git for original if glitches arise
+
 void ULGSCombatCoreComponent::DoRangedShot()
 {
-	if (!bCanFire) return;
-	bCanFire = false;
+    if (!bCanFire) return;
+    bCanFire = false;
 
-	UWorld* World = GetWorld();
-	if (!World) { ResetFire(); return; }
+    UWorld* World = GetWorld();
+    if (!World) { ResetFire(); return; }
 
-	ALGSCoreJan12026Character* OwnerChar = Cast<ALGSCoreJan12026Character>(GetOwner());
-	if (!OwnerChar) { ResetFire(); return; }
+    ALGSCoreJan12026Character* OwnerChar =
+        Cast<ALGSCoreJan12026Character>(GetOwner());
 
-	// --- Ranged fire montage (first-person arms) ---
-	if (FP_Rifle_Shoot_Montage)
-	{
-		if (USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P())
-		{
-			if (UAnimInstance* AnimInst = Arms->GetAnimInstance())
-			{
-				if (!AnimInst->Montage_IsPlaying(FP_Rifle_Shoot_Montage))
-				{
-					AnimInst->Montage_Play(FP_Rifle_Shoot_Montage, 1.0f);
-				}
-			}
-			else
-			{
-				UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] Mesh1P has no AnimInstance"));
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] FP_Rifle_Shoot_Montage is NULL"));
-	}
+    if (!OwnerChar) { ResetFire(); return; }
 
-	// Choose projectile class
-	TSubclassOf<ALGSCoreJan12026Projectile> ChosenClass = BulletClass;
+    // ============================================================
+    // RANGED ENERGY MVP2 — Choose projectile class
+    // ============================================================
 
-	if (ULGSHyperDriveComponent* HyperComp = OwnerChar->FindComponentByClass<ULGSHyperDriveComponent>())
-	{
-		if (HyperComp->IsHyperDriveActive() && HyperDriveBulletClass)
-		{
-			if (FMath::FRand() <= HyperDriveBulletChance)
-			{
-				ChosenClass = HyperDriveBulletClass;
-				UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] HyperDrive projectile selected"));
-			}
-		}
-	}
+    TSubclassOf<ALGSCoreJan12026Projectile> ChosenClass = BulletClass;
 
-	if (!ChosenClass)
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] No projectile class set"));
+    bool bExplosiveShot = false;
 
-		World->GetTimerManager().SetTimer(
-			Timer_FireCooldown,
-			this,
-			&ULGSCombatCoreComponent::ResetFire,
-			FireCooldown,
-			false
-		);
-		return;
-	}
+    if (ULGSHyperDriveComponent* HyperComp =
+        OwnerChar->FindComponentByClass<ULGSHyperDriveComponent>())
+    {
+        if (HyperComp->IsHyperDriveActive() && HyperDriveBulletClass)
+        {
+            if (FMath::FRand() <= HyperDriveBulletChance)
+            {
+                ChosenClass = HyperDriveBulletClass;
+                bExplosiveShot = true;
 
-	// Prefer muzzle socket location, but aim with camera rotation for FPS feel.
-	FTransform SpawnXform = OwnerChar->GetActorTransform();
+                UE_LOG(LogTemplateCharacter, Warning,
+                    TEXT("[RANGED] HyperDrive projectile selected"));
+            }
+        }
+    }
 
-	UCameraComponent* Cam = OwnerChar->GetFirstPersonCameraComponent();
-	const FRotator AimRot = Cam ? Cam->GetComponentRotation() : OwnerChar->GetActorRotation();
+    if (!ChosenClass)
+    {
+        UE_LOG(LogTemplateCharacter, Warning,
+            TEXT("[RANGED] No projectile class set"));
 
-	if (USkeletalMeshComponent* Mesh1P = OwnerChar->GetMesh1P())
-	{
-		if (Mesh1P->DoesSocketExist(MuzzleSocketName))
-		{
-			const FVector MuzzleLoc = Mesh1P->GetSocketLocation(MuzzleSocketName);
-			SpawnXform = FTransform(AimRot, MuzzleLoc);
-		}
-		else if (Cam)
-		{
-			const FVector Loc = Cam->GetComponentLocation() + Cam->GetForwardVector() * 100.f;
-			SpawnXform = FTransform(AimRot, Loc);
-		}
-	}
-	else if (Cam)
-	{
-		const FVector Loc = Cam->GetComponentLocation() + Cam->GetForwardVector() * 100.f;
-		SpawnXform = FTransform(AimRot, Loc);
-	}
+        World->GetTimerManager().SetTimer(
+            Timer_FireCooldown,
+            this,
+            &ULGSCombatCoreComponent::ResetFire,
+            FireCooldown,
+            false
+        );
+        return;
+    }
 
-	FActorSpawnParameters Params;
-	Params.Owner = OwnerChar;
-	Params.Instigator = OwnerChar;
+    // ============================================================
+    // RANGED ENERGY MVP2 — Validate energy BEFORE firing
+    // ============================================================
 
-	ALGSCoreJan12026Projectile* SpawnedProj =
-		World->SpawnActor<ALGSCoreJan12026Projectile>(ChosenClass, SpawnXform, Params);
+    const float EnergyCost = bExplosiveShot
+        ? ExplosiveShotEnergyCost
+        : RegularShotEnergyCost;
 
-	UE_LOG(LogTemplateCharacter, Warning, TEXT("[RANGED] Spawned projectile: %s"),
-		*GetNameSafe(SpawnedProj));
+    if (!HasEnoughRangedEnergy(EnergyCost))
+    {
+        UE_LOG(LogTemplateCharacter, Verbose,
+            TEXT("[RANGED ENERGY] Insufficient energy: %.1f / %.1f | Cost: %.1f"),
+            CurrentRangedEnergy,
+            MaxRangedEnergy,
+            EnergyCost);
 
-	World->GetTimerManager().SetTimer(
-		Timer_FireCooldown,
-		this,
-		&ULGSCombatCoreComponent::ResetFire,
-		FireCooldown,
-		false
-	);
+        // Do NOT reset the recharge delay here.
+        // Failed shots must not prevent energy regeneration.
+
+        World->GetTimerManager().SetTimer(
+            Timer_FireCooldown,
+            this,
+            &ULGSCombatCoreComponent::ResetFire,
+            FireCooldown,
+            false
+        );
+        return;
+    }
+
+    // ============================================================
+    // RANGED FIRE — Montage (only when energy is sufficient)
+    // ============================================================
+
+    if (FP_Rifle_Shoot_Montage)
+    {
+        if (USkeletalMeshComponent* Arms = OwnerChar->GetMesh1P())
+        {
+            if (UAnimInstance* AnimInst = Arms->GetAnimInstance())
+            {
+                if (!AnimInst->Montage_IsPlaying(FP_Rifle_Shoot_Montage))
+                {
+                    AnimInst->Montage_Play(FP_Rifle_Shoot_Montage, 1.0f);
+                }
+            }
+            else
+            {
+                UE_LOG(LogTemplateCharacter, Warning,
+                    TEXT("[RANGED] Mesh1P has no AnimInstance"));
+            }
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemplateCharacter, Warning,
+            TEXT("[RANGED] FP_Rifle_Shoot_Montage is NULL"));
+    }
+
+    // ============================================================
+    // RANGED FIRE — Spawn transform
+    // ============================================================
+
+    FTransform SpawnXform = OwnerChar->GetActorTransform();
+
+    UCameraComponent* Cam = OwnerChar->GetFirstPersonCameraComponent();
+
+    const FRotator AimRot = Cam
+        ? Cam->GetComponentRotation()
+        : OwnerChar->GetActorRotation();
+
+    if (USkeletalMeshComponent* Mesh1P = OwnerChar->GetMesh1P())
+    {
+        if (Mesh1P->DoesSocketExist(MuzzleSocketName))
+        {
+            const FVector MuzzleLoc =
+                Mesh1P->GetSocketLocation(MuzzleSocketName);
+
+            SpawnXform = FTransform(AimRot, MuzzleLoc);
+        }
+        else if (Cam)
+        {
+            const FVector Loc =
+                Cam->GetComponentLocation() +
+                Cam->GetForwardVector() * 100.f;
+
+            SpawnXform = FTransform(AimRot, Loc);
+        }
+    }
+    else if (Cam)
+    {
+        const FVector Loc =
+            Cam->GetComponentLocation() +
+            Cam->GetForwardVector() * 100.f;
+
+        SpawnXform = FTransform(AimRot, Loc);
+    }
+
+    FActorSpawnParameters Params;
+    Params.Owner = OwnerChar;
+    Params.Instigator = OwnerChar;
+
+    ALGSCoreJan12026Projectile* SpawnedProj =
+        World->SpawnActor<ALGSCoreJan12026Projectile>(
+            ChosenClass,
+            SpawnXform,
+            Params
+        );
+
+    // ============================================================
+    // RANGED ENERGY MVP2 — Consume only on successful spawn
+    // ============================================================
+
+    if (SpawnedProj)
+    {
+        ConsumeRangedEnergy(EnergyCost);
+
+        UE_LOG(LogTemplateCharacter, Log,
+            TEXT("[RANGED ENERGY] Fired %s | Cost: %.1f | Remaining: %.1f / %.1f"),
+            bExplosiveShot ? TEXT("EXPLOSIVE") : TEXT("REGULAR"),
+            EnergyCost,
+            CurrentRangedEnergy,
+            MaxRangedEnergy);
+    }
+    else
+    {
+        UE_LOG(LogTemplateCharacter, Warning,
+            TEXT("[RANGED] Projectile spawn FAILED — no energy consumed"));
+    }
+
+    UE_LOG(LogTemplateCharacter, Warning,
+        TEXT("[RANGED] Spawned projectile: %s"),
+        *GetNameSafe(SpawnedProj));
+
+    // Preserve existing firing cooldown.
+    World->GetTimerManager().SetTimer(
+        Timer_FireCooldown,
+        this,
+        &ULGSCombatCoreComponent::ResetFire,
+        FireCooldown,
+        false
+    );
 }
-//end 3_21
+//end new 11_19 replaced DORangedShot for Ranged Energy Meter
+
 
 //new 2_18 autofire
 void ULGSCombatCoreComponent::StartAutoFire()
