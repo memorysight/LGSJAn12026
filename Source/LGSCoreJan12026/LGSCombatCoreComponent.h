@@ -19,6 +19,14 @@ enum class ECombatMode : uint8
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatModeChanged, ECombatMode, NewMode);
 
+//new 11_18RangedDepletion
+// Ranged Energy MVP1 — HUD notification
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnRangedEnergyChanged,
+	float, CurrentEnergy,
+	float, MaxEnergy
+);
+
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class LGSCOREJAN12026_API ULGSCombatCoreComponent : public UActorComponent
 {
@@ -74,6 +82,45 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Combat|Input")
 	void StopAutoFire();
+
+	//new 11_18RangedDepletion
+	// ============================================================
+	// RANGED ENERGY MVP1
+	// ============================================================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged|Energy",
+		meta=(ClampMin="1.0"))
+	float MaxRangedEnergy = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat|Ranged|Energy")
+	float CurrentRangedEnergy = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged|Energy",
+		meta=(ClampMin="0.0"))
+	float RegularShotEnergyCost = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged|Energy",
+		meta=(ClampMin="0.0"))
+	float ExplosiveShotEnergyCost = 20.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged|Energy",
+		meta=(ClampMin="0.0"))
+	float EnergyRechargeDelay = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Ranged|Energy",
+		meta=(ClampMin="0.0"))
+	float EnergyRechargeRate = 20.0f;
+
+	UPROPERTY(BlueprintAssignable, Category="Combat|Ranged|Energy")
+	FOnRangedEnergyChanged OnRangedEnergyChanged;
+
+	UFUNCTION(BlueprintPure, Category="Combat|Ranged|Energy")
+	float GetRangedEnergyPercent() const
+	{
+		return MaxRangedEnergy > 0.0f
+			? FMath::Clamp(CurrentRangedEnergy / MaxRangedEnergy, 0.0f, 1.0f)
+			: 0.0f;
+	}
 
 	// --- Melee config ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat|Melee")
@@ -141,6 +188,18 @@ private:
 
 	UFUNCTION()
 	void AutoFireTick();
+
+	//new 11_18
+	// Ranged Energy MVP1 — recharge internals
+	FTimerHandle Timer_EnergyRechargeDelay;
+	FTimerHandle Timer_EnergyRecharge;
+
+	void StartEnergyRecharge();
+	void RechargeEnergyTick();
+	void ResetEnergyRechargeDelay();
+
+	bool HasEnoughRangedEnergy(float Cost) const;
+	void ConsumeRangedEnergy(float Cost);
 
 	UPROPERTY(EditAnywhere, Category="Combat|Ranged")
 	bool bIsFullAuto = true;

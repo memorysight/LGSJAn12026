@@ -27,6 +27,14 @@ void ULGSCombatCoreComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//new 11_18 RangedDepletion
+	CurrentRangedEnergy = FMath::Max(0.0f, MaxRangedEnergy);
+
+	OnRangedEnergyChanged.Broadcast(
+		CurrentRangedEnergy,
+		MaxRangedEnergy
+	);
+
 	UE_LOG(LogTemplateCharacter, Warning,
 		TEXT("[MODE] CombatCore BeginPlay pre-broadcast = %s (Owner=%s, Comp=%s)"),
 		CombatMode == ECombatMode::Ranged ? TEXT("Ranged") : TEXT("Melee"),
@@ -282,6 +290,114 @@ void ULGSCombatCoreComponent::ResetFire()
 	UE_LOG(LogTemplateCharacter, Warning, TEXT("[AUTO] ResetFire -> bCanFire=1"));
 }
 //end 2_18
+
+//new 11_18 RangedDepletion
+// ============================================================
+// RANGED ENERGY MVP1
+// ============================================================
+
+bool ULGSCombatCoreComponent::HasEnoughRangedEnergy(float Cost) const
+{
+    return CurrentRangedEnergy >= Cost;
+}
+
+void ULGSCombatCoreComponent::ConsumeRangedEnergy(float Cost)
+{
+    if (Cost <= 0.0f || !HasEnoughRangedEnergy(Cost))
+    {
+        return;
+    }
+
+    CurrentRangedEnergy = FMath::Clamp(
+        CurrentRangedEnergy - Cost,
+        0.0f,
+        MaxRangedEnergy
+    );
+
+    OnRangedEnergyChanged.Broadcast(
+        CurrentRangedEnergy,
+        MaxRangedEnergy
+    );
+
+    ResetEnergyRechargeDelay();
+}
+
+void ULGSCombatCoreComponent::ResetEnergyRechargeDelay()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    FTimerManager& TimerManager = GetWorld()->GetTimerManager();
+
+    TimerManager.ClearTimer(Timer_EnergyRecharge);
+    TimerManager.ClearTimer(Timer_EnergyRechargeDelay);
+
+    if (CurrentRangedEnergy >= MaxRangedEnergy)
+    {
+        return;
+    }
+
+    if (EnergyRechargeDelay <= 0.0f)
+    {
+        StartEnergyRecharge();
+        return;
+    }
+
+    TimerManager.SetTimer(
+        Timer_EnergyRechargeDelay,
+        this,
+        &ULGSCombatCoreComponent::StartEnergyRecharge,
+        EnergyRechargeDelay,
+        false
+    );
+}
+
+void ULGSCombatCoreComponent::StartEnergyRecharge()
+{
+    if (!GetWorld() || CurrentRangedEnergy >= MaxRangedEnergy)
+    {
+        return;
+    }
+
+    constexpr float RechargeInterval = 0.05f;
+
+    GetWorld()->GetTimerManager().SetTimer(
+        Timer_EnergyRecharge,
+        this,
+        &ULGSCombatCoreComponent::RechargeEnergyTick,
+        RechargeInterval,
+        true
+    );
+}
+
+void ULGSCombatCoreComponent::RechargeEnergyTick()
+{
+    constexpr float RechargeInterval = 0.05f;
+
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    CurrentRangedEnergy = FMath::Min(
+        CurrentRangedEnergy + EnergyRechargeRate * RechargeInterval,
+        MaxRangedEnergy
+    );
+
+    OnRangedEnergyChanged.Broadcast(
+        CurrentRangedEnergy,
+        MaxRangedEnergy
+    );
+
+    if (CurrentRangedEnergy >= MaxRangedEnergy)
+    {
+        GetWorld()->GetTimerManager().ClearTimer(
+            Timer_EnergyRecharge
+        );
+    }
+}
 
 
 
