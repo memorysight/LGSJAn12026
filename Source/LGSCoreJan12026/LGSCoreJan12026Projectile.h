@@ -35,6 +35,21 @@ public:
 	USphereComponent* GetCollisionComp() const { return CollisionComp; }
 	UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
 
+	// new 11_20===================================================
+	// CROUCH PRECISION FIRE — Per-projectile damage multiplier
+	// ============================================================
+
+	// Defaults to 1.0, preserving existing projectile damage.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly,
+		Category="Projectile|PrecisionFire")
+	float DamageMultiplier = 1.0f;
+
+	// CombatCore assigns this after spawning a regular projectile.
+	void SetDamageMultiplier(float NewMultiplier)
+	{
+		DamageMultiplier = FMath::Max(1.0f, NewMultiplier);
+	}
+
 protected:
 	virtual void BeginPlay() override;
 

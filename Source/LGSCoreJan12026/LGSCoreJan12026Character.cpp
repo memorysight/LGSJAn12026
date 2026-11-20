@@ -783,10 +783,22 @@ void ALGSCoreJan12026Character::OnCrouchStarted()
 }
 
 
+// 11_20 Crouch Enhanced Power=================================
+// CROUCH PRECISION FIRE — Reset on crouch release
+// ============================================================
+
 void ALGSCoreJan12026Character::OnCrouchReleased()
 {
 	UnCrouch();
 
+	// Reset accumulated precision damage immediately
+	// when the player releases crouch.
+	if (CombatCore)
+	{
+		CombatCore->ResetCrouchPrecision();
+	}
+
+	// Preserve existing MVS crouch stem behavior.
 	if (MVSComponent)
 	{
 		MVSComponent->SetCrouchStemActive(false);

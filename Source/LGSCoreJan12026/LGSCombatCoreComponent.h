@@ -111,6 +111,35 @@ public:
 		meta=(ClampMin="0.0"))
 	float EnergyRechargeRate = 20.0f;
 
+	//new 11_20 Crouch Enhanced Power
+	// ============================================================
+	// CROUCH PRECISION FIRE — MVP1
+	// ============================================================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		Category="Combat|Ranged|PrecisionFire",
+		meta=(ClampMin="0.0"))
+	float CrouchRegularShotEnergyCost = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		Category="Combat|Ranged|PrecisionFire",
+		meta=(ClampMin="0.0", ClampMax="1.0"))
+	float CrouchDamageBonusPerShot = 0.01f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		Category="Combat|Ranged|PrecisionFire",
+		meta=(ClampMin="0.0", ClampMax="1.0"))
+	float MaxCrouchDamageBonus = 0.15f;
+
+	// Tracks successful crouched REGULAR shots only.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly,
+		Category="Combat|Ranged|PrecisionFire")
+	int32 ConsecutiveCrouchShots = 0;
+
+	// Called when the player exits crouch.
+	UFUNCTION(BlueprintCallable, Category="Combat|Ranged|PrecisionFire")
+	void ResetCrouchPrecision();
+
 	UPROPERTY(BlueprintAssignable, Category="Combat|Ranged|Energy")
 	FOnRangedEnergyChanged OnRangedEnergyChanged;
 
@@ -200,6 +229,9 @@ private:
 
 	bool HasEnoughRangedEnergy(float Cost) const;
 	void ConsumeRangedEnergy(float Cost);
+
+	//new 11_20 Crouch enhanced power
+	void ResetCrouchPrecisionInternal();
 
 	UPROPERTY(EditAnywhere, Category="Combat|Ranged")
 	bool bIsFullAuto = true;

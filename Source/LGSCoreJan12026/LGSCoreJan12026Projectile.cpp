@@ -65,15 +65,26 @@ void ALGSCoreJan12026Projectile::HandleImpact(
 
 	if (OtherActor && OtherActor != this && OtherActor != GetOwner())
 	{
+		//new 11_20 crouch enhanced damage signature
 		if (DirectHitDamage > 0.0f)
 		{
+			const float FinalDamage =
+				DirectHitDamage * DamageMultiplier;
+
+			UE_LOG(LogTemp, Log,
+				TEXT("[PRECISION FIRE] Projectile=%s | Base=%.2f | Multiplier=%.3f | FinalDamage=%.2f"),
+				*GetNameSafe(this),
+				DirectHitDamage,
+				DamageMultiplier,
+				FinalDamage);
+
 			UGameplayStatics::ApplyPointDamage(
 				OtherActor,
-				DirectHitDamage,
+				FinalDamage,
 				GetVelocity().GetSafeNormal(),
 				Hit,
 				InstigatorController,
-				GetOwner(),          // important: often better for downstream hit logic than 'this'
+				GetOwner(),
 				DamageTypeClass
 			);
 		}

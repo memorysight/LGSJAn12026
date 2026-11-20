@@ -99,8 +99,25 @@ void ULGSCombatCoreComponent::TrySecondary()
 	// Reserved for Aim / Block / AltFire later .
 }
 
-//new 3_21 ExplosiveBullets
-//new 11_19 Completely Replaced DoRangedShot: check git for original if glitches arise
+//3_21 ExplosiveBullets
+//11_19 Completely Replaced DoRangedShot: check git for original if glitches arise
+
+//new 11_20 crouch enhanced abilities
+// ============================================================
+// CROUCH PRECISION FIRE — Reset on standing
+// ============================================================
+
+void ULGSCombatCoreComponent::ResetCrouchPrecision()
+{
+	if (ConsecutiveCrouchShots > 0)
+	{
+		UE_LOG(LogTemplateCharacter, Warning,
+			TEXT("[CROUCH FIRE] Standing — Precision RESET | Previous shots: %d"),
+			ConsecutiveCrouchShots);
+	}
+
+	ConsecutiveCrouchShots = 0;
+}
 
 void ULGSCombatCoreComponent::DoRangedShot()
 {
@@ -114,6 +131,18 @@ void ULGSCombatCoreComponent::DoRangedShot()
         Cast<ALGSCoreJan12026Character>(GetOwner());
 
     if (!OwnerChar) { ResetFire(); return; }
+
+	// new 11_20 crouch enhanced abilities=========================
+	// CROUCH PRECISION FIRE — Detect current crouch state
+	// ============================================================
+
+	const bool bCrouched = OwnerChar->bIsCrouched;
+
+	// Safety: standing shots never inherit crouch precision.
+	if (!bCrouched && ConsecutiveCrouchShots > 0)
+	{
+		ResetCrouchPrecision();
+	}
 
     // ============================================================
     // RANGED ENERGY MVP2 — Choose projectile class
@@ -157,10 +186,17 @@ void ULGSCombatCoreComponent::DoRangedShot()
     // ============================================================
     // RANGED ENERGY MVP2 — Validate energy BEFORE firing
     // ============================================================
+	
+	// new 11_20 crouch enhanced power=============================
+	// CROUCH PRECISION FIRE — Energy cost
+	// Explosive bullets NEVER receive crouch discounts.
+	// ============================================================
 
-    const float EnergyCost = bExplosiveShot
-        ? ExplosiveShotEnergyCost
-        : RegularShotEnergyCost;
+	const float EnergyCost = bExplosiveShot
+		? ExplosiveShotEnergyCost
+		: (bCrouched
+			? CrouchRegularShotEnergyCost
+			: RegularShotEnergyCost);
 
     if (!HasEnoughRangedEnergy(EnergyCost))
     {
@@ -265,35 +301,57 @@ void ULGSCombatCoreComponent::DoRangedShot()
     // RANGED ENERGY MVP2 — Consume only on successful spawn
     // ============================================================
 
-    if (SpawnedProj)
-    {
-        ConsumeRangedEnergy(EnergyCost);
+	if (SpawnedProj)
+	{
+		// ========================================================
+		// CROUCH PRECISION FIRE — Regular projectiles ONLY
+		// ========================================================
 
-        UE_LOG(LogTemplateCharacter, Log,
-            TEXT("[RANGED ENERGY] Fired %s | Cost: %.1f | Remaining: %.1f / %.1f"),
-            bExplosiveShot ? TEXT("EXPLOSIVE") : TEXT("REGULAR"),
-            EnergyCost,
-            CurrentRangedEnergy,
-            MaxRangedEnergy);
-    }
-    else
-    {
-        UE_LOG(LogTemplateCharacter, Warning,
-            TEXT("[RANGED] Projectile spawn FAILED — no energy consumed"));
-    }
+		if (bCrouched && !bExplosiveShot)
+		{
+			++ConsecutiveCrouchShots;
 
-    UE_LOG(LogTemplateCharacter, Warning,
-        TEXT("[RANGED] Spawned projectile: %s"),
-        *GetNameSafe(SpawnedProj));
+			const float DamageBonus = FMath::Min(
+				ConsecutiveCrouchShots * CrouchDamageBonusPerShot,
+				MaxCrouchDamageBonus
+			);
 
-    // Preserve existing firing cooldown.
+			const float DamageMultiplier = 1.0f + DamageBonus;
+
+			SpawnedProj->SetDamageMultiplier(DamageMultiplier);
+
+			UE_LOG(LogTemplateCharacter, Warning,
+				TEXT("[CROUCH FIRE] REGULAR | Shot=%d | Bonus=%.1f%% | Multiplier=%.3f | EnergyCost=%.1f"),
+				ConsecutiveCrouchShots,
+				DamageBonus * 100.0f,
+				DamageMultiplier,
+				EnergyCost);
+		}
+		else if (bExplosiveShot)
+		{
+			UE_LOG(LogTemplateCharacter, Log,
+				TEXT("[CROUCH FIRE] EXPLOSIVE | No bonus | EnergyCost=%.1f"),
+				EnergyCost);
+		}
+
+		// Preserve existing energy consumption and HUD updates.
+		ConsumeRangedEnergy(EnergyCost);
+
+		UE_LOG(LogTemplateCharacter, Log,
+			TEXT("[RANGED ENERGY] Fired %s | Cost: %.1f | Remaining: %.1f / %.1f"),
+			bExplosiveShot ? TEXT("EXPLOSIVE") : TEXT("REGULAR"),
+			EnergyCost,
+			CurrentRangedEnergy,
+			MaxRangedEnergy);
+	}
+	 // Restore firing cooldown.
     World->GetTimerManager().SetTimer(
         Timer_FireCooldown,
         this,
         &ULGSCombatCoreComponent::ResetFire,
         FireCooldown,
         false
-    );
+);
 }
 //end new 11_19 replaced DORangedShot for Ranged Energy Meter
 
